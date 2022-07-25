@@ -1,0 +1,24 @@
+:numbered:
+=== Connect bastion Node
+. Bastion node is the main host which is accssible via ssh from public network. You will be using this host for running commands and accessing other host available in your environment. You will use ssh to connect bastion node, using the login details provided in third email.
++
+[source,sh]
+----
+[laptop]$ ssh <OPENTLC-USER-ID>@bastion.${GUID}.${SUBDOMAIN}
+----
+
+. Switch to `devops` user. The User devops is service account in bastion node who has complete sudoer privilege to run all commands with no sudo password.
++
+[source,sh]
+----
+[bastion]$ sudo su - devops
+----
+
+=== Refresh Satellite Manifest
+
+. After restart of your classroom environment need to run following `Lab Manager` command to refresh satellite manifest.
++
+[source,sh]
+----
+$ lab refresh -i satellite
+----

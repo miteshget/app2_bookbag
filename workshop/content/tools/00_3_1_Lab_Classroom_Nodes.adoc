@@ -1,0 +1,16 @@
+:numbered:
+=== Lab Environment Nodes
+. Following classroom nodes will be available after your environment is provisioned.
++
+.Environment Nodes
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+|Sr No | Type  | Name | Description
+| {counter:node} .2+| *Nodes*  
+        | bastion   | This is remote host to connect internal resources.
+| {counter:node} | satellite | This is content (RPMs) server, which will be used for all the host/pods in the training.
+|===
+
++
+NOTE: Access and credentials details will be provided in third email.
+

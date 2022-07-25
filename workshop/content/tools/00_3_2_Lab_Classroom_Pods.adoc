@@ -1,0 +1,15 @@
+:numbered:
+=== Service Pods
+. Following are the list service pods which will be available after classroom is prepared.
++
+.Service Pods
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Type  | Name | Description
+| {counter:pod} .3+| *Pods*   
+                | gitlab    | Gitlab server is containerized service running on bastion node
+| {counter:pod} | bind9     | bind9 provides dns service for internal hosts, running on bastion node.
+| {counter:pod} | haproxy   | haproxy provides public access to internal resource such as gitlab server, running on bastion node.
+|===
+
+

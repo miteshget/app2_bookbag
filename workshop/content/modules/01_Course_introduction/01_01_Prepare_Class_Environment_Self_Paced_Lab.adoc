@@ -1,6 +1,6 @@
 :labname: Prepare Classroom Environment
 
-include::../tools/00_1_Lab_Header.adoc[]
+include::../../tools/00_1_Lab_Header.adoc[]
 :imagesdir: ./images
 :numbered:
 
@@ -8,9 +8,9 @@ include::../tools/00_1_Lab_Header.adoc[]
 In this lab you will order your work enviroment which you will be using in rest of the course lab.
 
 
-include::../tools/00_2_1_Lab_Provision.adoc[]
-include::../tools/00_3_1_Lab_Classroom_Nodes.adoc[]
-include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+include::../../tools/00_2_1_Lab_Provision.adoc[]
+include::../../tools/00_3_1_Lab_Classroom_Nodes.adoc[]
+include::../../tools/00_3_2_Lab_Connect_Environment.adoc[]
 
 
 === Prepare Classroom
@@ -24,7 +24,7 @@ $ lab prep -c aa-developer
 +
 NOTE: You can run `lab cleanup -c aa-developer` in case prep fails and then re run above command to prepare your classroom.
 
-include::../tools/00_3_2_Lab_Classroom_Pods.adoc[]
+include::../../tools/00_3_2_Lab_Classroom_Pods.adoc[]
 
 
 === Configure GitLab pod

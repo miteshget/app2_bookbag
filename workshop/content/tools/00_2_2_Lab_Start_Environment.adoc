@@ -1,0 +1,17 @@
+:numbered:
+== Start Lab Environment
+You need to run following steps if your lab environment has shut down. To conserve resources, the lab environment shuts down automatically after eight hours.
+
+=== Start Environment After Shut Down
+
+. Go to the {opencf} and use your OPENTLC credentials to log in.
+. Navigate to *Services -> My Services* (this should be the screen shown right after logging in).
+. In the list of your services, select your lab environment.
+. Select *App Control -> Start* to start your lab environment.
+. Select *Yes* at the *Are you sure?* prompt.
+. On the bottom right, click *Submit*.
++
+TIP: After a few minutes, expect to receive an email letting you know that the lab environment has been started.
+
+
+

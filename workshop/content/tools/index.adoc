@@ -1,0 +1,103 @@
+
+// Lab Document Setup
+:scrollbar:
+:data-uri:
+:linkattrs:
+:imagesdir: ./images
+:toc2:
+
+image:ansible_bg.png["Ansible Automation Platform",600,600,align="center"]
+
+= Ansible Automation Platform 2 - Content Creator
+Red Hat Portfolio Field Enablement
+
+
+
+:numbered:
+
+== *Lab Instructions*
+. *Course Instroduction*
++
+.Self Paced Labs
+    * link:01_01_Prepare_Class_Environment_Self_Paced_Lab.html[01_01- Prepare Class Environment]
+    * link:01_02_Visual_Studio_Code_IDE_Self_Paced_Lab.html[01_02- Visual Studio Code IDE]
+
+
+. *Architecture*
++
+.Self Paced Labs
+    * link:02_01_Using_Git_Self_Paced_Lab.html[02_01- Using Git]
+    * link:02_02_Service_Account_Self_Paced_Lab.html[02_02- Service Account]
+
+. *Developer Resources*
++
+.Self Paced Labs
+    * link:03_01_Automation_Content_Navigator_Self_Paced_Lab.html[03_01- Automation Content Navigator]
+    * link:03_02_Custom_Execution_Environment_Self_Paced_Lab.html[03_02- Custom Execution Environment]
+
+. *Good Practices*
++
+.Labs
+    * link:04_01_Dictionary_Parsing_Lab.html[04_01- Dictionary Parsing]
+    * link:04_02_Jinja_Templates_Lab.html[04_02- Jinja Templates]
++
+.Click here for Solutions
+[%collapsible]
+====
+    * link:04_01_Dictionary_Parsing_Solutions_Lab.html[04_01- Dictionary_Parsing_Solutions]
+    * link:04_02_Jinja_Templates_Solutions_Lab.html[04_02- Jinja_Templates_Solutions]
+====
++
+.Self Paced Labs
+    * link:04_03_Using_Plugins_Self_Paced_Lab.html[04_03- Using_Plugins]
+
+
+
+
+. *Building Inventory*
++
+.Self Paced Labs
+    * link:05_01_Inventory_Plugins_Self_Paced_Lab.html[05_01- Inventory_Plugins]
+    * link:05_02_In_Memory_Inventory_Self_Paced_Lab.html[05_02- In_Memory_Inventory]
+
+. *Building Playbook*
++
+.Labs
+    * link:06_01_Writing_Ansible_Roles_Lab.html[06_01- Writing_Ansible_Roles]
++
+.Click here for Solutions
+[%collapsible]
+====
+    * link:06_01_Writing_Ansible_Roles_Solutions_Lab.html[06_01- Writing_Ansible_Roles_Solutions]
+====
++
+.Self Paced Labs
+    * link:06_02_Creating_Ansible_Collections_Self_Paced_Lab.html[06_02- Creating_Ansible_Collections]
+    * link:06_03_One_Command_Application_Deployment_Self_Paced_Lab.html[06_03- One_Command_Application_Deployment]
+
+
+
+. *Testing Roles Collections and Playbooks*
++
+.Self Paced Labs
+    * link:07_01_Understanding_Molecule_Self_Paced_Lab.html[07_01- Understanding_Molecule]
+    * link:07_02_Testing_Role_with_Molecule_Self_Paced_Lab.html[07_02- Testing_Role_with_Molecule]
+    * link:07_03_Testing_Playbook_And_Collections_Self_Paced_Lab.html[07_03- Testing_Playbook_And_Collections]
+
+. *IaC Automation*
++
+.Labs
+    * link:08_01_Provision_Cloud_Instances_Lab.html[08_01- Provision_Cloud_Instances]
+    * link:08_02_Configure_Cloud_Instances_Lab.html[08_02- Configure_Cloud_Instances]
++
+.Click here for Solutions
+[%collapsible]
+====
+    * link:08_01_Provision_Cloud_Instances_Solutions_Lab.html[08_01- Provision_Cloud_Instances_Solutions]
+    * link:08_02_Configure_Cloud_Instances_Solutions_Lab.html[08_02- Configure_Cloud_Instances_Solutions]
+====
+
+
+== Final Lab
+.Assignment
+    * link:09_Final_Lab.html[09- Final_Lab]

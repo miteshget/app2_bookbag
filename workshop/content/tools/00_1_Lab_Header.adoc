@@ -1,0 +1,19 @@
+// Course Properties
+:course_name: Advanced Deployment with Red Hat Ansible Automation
+
+// Opentlc Portal
+:opencf: link:https://labs.opentlc.com/[OPENTLC lab portal^]
+:account_management: link:https://www.opentlc.com/account/[OPENTLC Account Management^]
+
+// Catalog Item
+:catalog_name: OPENTLC Automation
+:catalog_item_name1: Ansible Advanced V2 Pilot - iLT
+
+// Lab Document Setup
+:scrollbar:
+:data-uri:
+:linkattrs:
+:imagesdir: images
+:toc2:
+
+= {labname}

@@ -1,0 +1,55 @@
+:numbered:
+== Provision and Review Lab Environment
+
+In this section, you provision the lab environment to provide access to all of the components required to perform the labs. The lab environment is a shared cloud-based environment, so that you can access it over the Internet from anywhere. However, do not expect performance to match a dedicated environment.
+
+=== Provision Lab Environment
+
+IMPORTANT: You can skip `Provision Lab Environment`. If you have already provisioned. However, you may need to start environment if it has shut down automatically.
+
+.Follow the steps to provision lab environment-
+
+. Navigate to the {opencf} and login using your OPENTLC credentials. 
+* If you have forgotten your credentials, visit the {account_management} page.
+. Navigate to *Services -> Catalogs -> All Services -> {catalog_name}*.
+. Select *{catalog_item_name1}* and click *Order* to provision your environment.
+. Click the *Lab Requests* tab and Select `Check this box to confirm that you understand and know your runtime and expiration dates`.
+. Select `Training - As part of course` in *Purpose* .
+. Then click on *Submit*.
+. Upon submit you will recieve three emails -
++
+****
+. First email
++
+[source,adoc]
+----
+First email with following subject - 
+`Your Red Hat OPENTLC service provision request for -<omitted>- has started`
+
+which means environment provisioning has started. 
+----
+. Second email
++
+[source,adoc]
+----
+Second email with following subject - 
+`Your Red Hat OPENTLC service provision request for -<omitted>- has updated`
+
+which means enviroment provisioning is half way done.
+----
+. Third email
++
+[source,adoc]
+----
+Third email with following subject - 
+`Your Red Hat OPENTLC service provision request for -<omitted>- has completed` 
+
+which means provisioning and configuration has finished and enviroment is ready for use.
+The email body will also contain environment and login credentials details.
+----
+****
++
+NOTE: Deployment can take between 20 and 30 minutes.
+
+. Wait until you receive the final e-mail before trying to connect to your environment.
+
