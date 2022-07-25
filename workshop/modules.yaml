@@ -1,17 +1,5 @@
 ---
 modules:
-  overview:
+  modules/01_Course_introduction/01_01_Prepare_Class_Environment_Self_Paced_Lab:
     name: Workshop Overview
     exit_sign: Prepare Environment
-  prepare-environment:
-    name: Prepare Environment
-    exit_sign: Lab Exercises
-  exercises:
-    name: Lab Exercises
-    exit_sign: Cleanup
-  cleanup:
-    name: Cleanup
-    exit_sign: Resetting and Solving
-  solving-resetting:
-    name: Resetting and Solving
-    exit_sign: Finish Workshop

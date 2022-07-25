@@ -1,0 +1,365 @@
+:labname: Custom Execution Environment
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+
+In this lab you have been asked to build custom execution environment called *ee-osp* which should include following requirements-
+
+. Collection
+* openstack.cloud
+. Python Library
+* openstacksdk
+. System Package
+* python3
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+== Installing Ansible Builder
+
+In this part of the lab, You will install ansible-builder to build container image. Ansible Builder is a command line tool that automates the process of building automation execution environments.
+
+. You can install Ansible Builder using Red Hat Subscription Management to register and attach to your Red Hat Ansible Automation Platform subscription. For your convenience node have all necessary repositories enabled. You can directly run `dnf` cli to install ansible-builder package.
+
++
+[source,sh]
+----
+$ sudo dnf install -y ansible-builder
+$ ansible-builder --version
+----
++
+.Version output
+[source,textinfo]
+----
+1.0.1
+----
+
+
+== Building Definition File
+
+=== Definition file
+Ansible Builder usage `definition file` to create execution environment image.  Ansible Builder reads and validates definition file, then create a Containerfile, and finally pass the Containerfile to Podman which then packages and creates automation execution environment image.
+
+. By default, Ansible Builder will look for a definition file named `execution-environment.yml`. So you will create a default definition file including all dependencies as per the lab requirements.
++
+[source,sh]
+----
+$ mkdir $HOME/ee-osp-build
+$ cd $HOME/ee-osp-build
+$ cat > execution-environment.yml <<EOF
+version: 1
+dependencies: 
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+EOF
+----
++
+[TIP]
+====
+* galaxy: will install collections.
+* python: will install python libraries.
+* system: will install rpm packages.
+====
+
+
+=== Galaxy Dependencies
+The `galaxy` entry in the dependenices section of definition file, points to valid requirements.yml file for the `ansible-galaxy collection install -r` command. The requirements.yml is a file that installs ansible collections. It may be listed as a relative path or an absolute path.
+
+. You need to create galaxy `requirements.yml` in `$HOME/ee-osp-build` directory as per lab collection requirements.
++
+[source,sh]
+----
+$ cd $HOME/ee-osp-build
+$ cat > requirements.yml <<EOF
+collections:
+  - openstack.cloud
+  - community.general
+  - ansible.posix
+EOF
+----
+
+=== Python Dependencies
+The `python` entry in the dependenices section of definition file, points to valid requirements.txt file for the `pip install -r` command. The requirements.txt is a file that installs extra Python requirements on top of what the Collections already list as their Python dependencies. It may be listed as a relative path or an absolute path.
+
+. You need to create python `requirements.txt` in `$HOME/ee-osp-build` directory as per lab python library requirements.
++
+[source,sh]
+----
+$ cd $HOME/ee-osp-build
+$ cat > requirements.txt <<EOF
+openstacksdk==0.36.5
+EOF
+----
+
+=== System Dependencies
+The system entry in the dependenices section of definition file, points to a bindep requirements file, which will install system-level dependencies that are outside of what the collections already include as their dependencies. It may be listed as a relative path or an absolute path.
+
+. You need to system `bindep.txt` in `$HOME/ee-osp-build` directory as per lab system packages requirements.
++
+[source,sh]
+----
+$ cd $HOME/ee-osp-build
+$ cat > bindep.txt <<EOF
+python3 [platform:rpm]
+EOF
+----
+
+== Build Execution Environment
+
+Finally, You can build custom automation execution environment from definition file and it's dependecies.
+
+. Let's list all of the files which we have created in previous steps.
++
+[source,sh]
+----
+$ tree $HOME/ee-osp-build
+----
++
+.tree cli output
+[source,textinfo]
+----
+/home/devops/ee-osp-build
+├── bindep.txt
+├── execution-environment.yml
+├── requirements.txt
+└── requirements.yml
+
+0 directories, 4 files
+----
+
+. Now you can run `ansible-builder` command with `-t` flag to specify custom name to build your custom automation execution environment.
+
++
+[source,sh]
+----
+$ ansible-builder build -t ee-osp:1.0.0
+----
++
+.Build output
+[source,textinfo]
+----
+Running command:
+  podman build -f context/Containerfile -t ee-osp:1.0.0 context
+Complete! The build context can be found at: /home/devops/ee-osp-build/context
+----
+
+. You can run `podman` cli to list newly build image.
++
+[source,sh]
+----
+$ podman images
+----
+
++
+.List of images
+image:ansible_builder_image.png[]
+
++
+[NOTE]
+====
+. Red Box - Custom image localhost/ee-osp
+. Yellow Box - Build artifcats
+====
+
+. You can clean up the build artifacts seen in previous list of images output.
++
+[source,sh]
+----
+$ podman image prune
+
+WARNING! This will remove all dangling images.
+Are you sure you want to continue? [y/N] y
+----
+
++
+.Image prune output
+[source,textinfo]
+----
+---<Output Omitted>---
+d3b0b0d5cc50f152976de36c3fc8d8e20f549920918cbd63429b41fbf35629e5
+97cc47d347395e0fabff8ba43d0e7fa7c756a4d6a94a3e34979197edc948d1e
+----
+
+. Let's verify custom execution environment image which you have created in previous steps.
+
++
+[source,sh]
+----
+$ ansible-navigator images
+----
++
+====
+. Type the *line number* of ee-osp image to get details.
+. Then type *2* to get list of collections available in the image and make sure you see *openstack.cloud* collection in the list.
+. To exit, keep on pressing <ESC> key until you are back to shell prompt.
+====
+
+
+== Test Custom Execution Environment
+In this part of the lab you will test custom execution environment image. 
+You will write a playbook which will be using `openstack.cloud` collection that you will run against default image and the custom image (created in previous steps) to verify that custom image serves the need of the lab requirement.
+
+=== Create Playbook & Navigator settings file
+. You need to create following playbook to test images as follows.
+
++
+[source,sh]
+----
+$ mkdir $HOME/test-osp-image
+$ cd $HOME/test-osp-image
+$ cat > playbook.yml <<EOF
+---
+- name: Test Custom EE
+  hosts: localhost
+  gather_facts: false
+  vars:
+    guid: "{{ lookup('env', 'GUID')}}"
+  tasks:
+    - name: Collect OpenStack instances info
+      openstack.cloud.server_info:
+        cloud: "{{ guid }}-project"
+        server: "*"
+      register: output
+
+    - name: Print output
+      debug:
+        var: output
+EOF
+----
+
+. Create ansible-navigator settings file as follows.
+
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    playbook: playbook.yml
+  app: run
+  execution-environment:
+    pull-policy: missing
+    volume-mounts:
+      - src: "/etc/openstack/clouds.yaml"
+        dest: "/etc/openstack/clouds.yaml"
+        label: "Z"
+    environment-variables:
+      pass:
+        - GUID
+  mode: stdout
+  playbook-artifact:
+    enable: False
+EOF
+----
+
+
+=== Run Against Default Execution Environment
+
+. You can simply execute `ansible-navigator` to run playbook with default execution environment.
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Command Output
+[source,textinfo]
+----
+ERROR! couldn't resolve module/action 'openstack.cloud.server_info'.
+This often indicates a misspelling, missing collection, or incorrect module path. <1>
+
+The error appears to be in '/home/devops/test-osp-image/playbook.yml': 
+line 8, column 7, but may be elsewhere in the file depending 
+on the exact syntax problem.
+
+The offending line appears to be:
+  tasks:
+    - name: Collect OpenStack instances info <2>
+      ^ here
+----
+
++
+[NOTE]
+====
+Read the error, playbook execution fails due to unavailability of module/collection.
+====
+
+=== Run Against Custom Execution Environment
+
+. Now re run your playbook with custom excution environment which has `openstack.cloud` collection inside the image. You can use `--eei` flag to pass execution environment image or you can add `image` dictionary in `ansible-navigator.yaml` settings file.
++
+[source,sh]
+----
+$ ansible-navigator --eei ee-osp:1.0.0
+----
++
+.Command Output
+[source,textinfo]
+----
+PLAY RECAP ***************************************************************************
+bastion    : ok=1  changed=0  unreachable=0  failed=0  skipped=0  rescued=0  ignored=0   
+localhost  : ok=3  changed=0  unreachable=0  failed=0  skipped=0  rescued=0  ignored=0   
+satellite  : ok=1  changed=0  unreachable=0  failed=0  skipped=0  rescued=0  ignored=0 
+----
++
+[NOTE]
+====
+This time playbook executed successfully because execution enviroment has openstack.cloud collection inside it.
+====
+
+== Push Execution Environment
+In the part of the lab, you will push custom execution environment image to private regsitry, details are given below.
+
+.Registry Details
+[%autowidth,cols="^.^,^.^a,^.^a",options="header"]
+|===
+| Sr No | Type | Value
+| {counter:reg:1} | Registry  | bastion.example.com:5000
+| {counter:reg}   | Username  | admin
+| {counter:reg}   | Password  | r3dh4t1!
+| {counter:reg}   | TLS       | --tls-verify=false
+| {counter:reg}   | URL       | https://bastion.example.com:5000/v2/\_catalog
+|===
+
+=== Tag New Execution Environment Image
+. An image name is made up of slash-separated name components, optionally prefixed by a registry hostname. The hostname must comply with standard DNS rules. If a hostname is present, it may optionally be followed by a port number in the format `:5000`. You run following steps to tag custom execution environment.
++
+[source,sh]
+----
+$ podman tag localhost/ee-osp:1.0.0 bastion.example.com:5000/custom/ee-osp:1.0.0
+----
+
+=== Push Execution Environment Image
+. Now, you can push custom image to a registry as follows. Just for info, we have configured local secure registry using self signed certificate so you can use `--tls-verify=false` to ignore certificate validation. 
++
+[source,sh]
+----
+$ podman login bastion.example.com:5000 -u admin -p r3dh4t1! --tls-verify=false
+$ podman push bastion.example.com:5000/custom/ee-osp:1.0.0 --tls-verify=false
+----
+
+=== Search Image In Registry
+. You can run following command to search image in registry.
++
+[source,sh]
+----
+$ podman search bastion.example.com:5000/custom --tls-verify=false
+----
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

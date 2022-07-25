@@ -1,0 +1,564 @@
+:labname: Gitlab
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+In this lab you will configure local git repository and Gitlab remote repository. You will also create, add, and commit content to local repository then you will learn how to push content to remote Gitlab repository. Following are the high lights of lab points-
+
+* Local Git Repository
+* GitLab (Remote) Repository
+* Push Content to Remote Repository
+* Securing Communication between Git and GitLab
+* Git Branch
+* Create and Merge Pull Request
+
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+
+== Introduction of Git & GitLab
+A quick description: git and GitLab are not the same thing. Git is an open-source, version control tool; GitLab is an opensource company which develops software for the software development lifecycle which integrate with git. You do not need Gitlab to use git, but you cannot use GitLab without using git. There are many other alternatives to GitLab, such as GitHub, BitBucket, and “host-your-own” solutions such as gogs and gittea. All of these are referred to in git-speak as “remotes”, and all are completely optional. You do not need to use a remote to use git, but it will make sharing your code with others easier.
+
+
+== Local Git Repository
+A Git repository is a virtual storage which allows you to save versions of your code, which you can access when needed. 
+In this section, you will learn how to set up a repository (repo) under Git version control. This resource will walk you through initializing a Git repository for a new or existing project.
+
+=== Initialize Git Repository
+In this section of the lab you will install, initialize, configure, add, and commit file to git repository.
+
+. You can start with git package installation as follows.
++
+[source,sh]
+----
+$ sudo dnf install git -y
+----
+
+. To initialize a git repository, You need to create a project directory in which you will do all your code development work.
++
+[source,sh]
+----
+$ mkdir $HOME/demo-project
+$ cd $HOME/demo-project
+----
+
+. Now, you need to run one-time `git init` initial command to initialize local git repository in the project directory.
++
+[source,sh]
+----
+$ git init
+$ git checkout -b main
+----
++
+[IMPORTANT]
+GitHub and GitLab renamed default `master` branch to `main` branch. More info: https://github.com/github/renaming and https://about.gitlab.com/blog/2021/03/10/new-git-default-branch-name/
+
+
+=== Git User Info
+. In addtion to initialization, you also need to set global git configuration options such as username or email. You will use `git config` command in the repository to setup. Git stores configuration in three separate files, which lets you scope options to individual repositories (local) in `./.git/config`, User-specific settings (Global) in `$HOME/.gitconfig`, or the entire system (system) in `/etc/gitconfig`.
+
++
+[source,sh]
+----
+$ git config --global user.name "devops"
+$ git config --global user.email "devops@example.com"
+$ git config --list
+----
++
+.Git config output
+[source=adoc]
+----
+user.email=devops@example.com
+user.name=devops
+core.repositoryformatversion=0
+core.filemode=true
+core.bare=false
+core.logallrefupdates=true
+----
+
+
+== Setup GitLab (Remote) Repository
+In this section of the lab you will login to Gitlab remote repository and create a new project.
+
+=== Login to GitLab
+. You have already up and running GitLab server in the lab environment which you can access through your browser or command line.
++
+.Login Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Type | Value
+| GitLab External URL | https://bastion.{{ GUID }}.dynamic.opentlc.com:49203
+| Username | devops
+| Password | r3dh4t1!
+|===
++
+[NOTE]
+Replace `{{ GUID }}` in above url with four digit string provided in email or you can run `echo ${GUID}` command to find the string. 
+
+
+=== Create GitLab Repository
+. You will need to create project in GitLab to setup new gitlab repository as follows -
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Create new project` on top bar.
+.. Then click on `Create blank project` on next page.
+.. Fill / select options as follows and Leave rest to default-
++
+.Project Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Name | Value
+| Project Name | demo-project
+| Project Description | Demo project gitlab module
+| Visibility Level | Public
+| Initialize repository with a README | Unchecked
+|===
+.. Then click on `Create project` button.
+
+
+== Writting Content in Local Repository
+In this part of lab you will write content, add, and commit conntent to the local git repository.
+
+=== Create New File
+. Create a README.adoc file in your project directory and use `git add` command to add a change in the working directory to the staging area. The `git add` command tells Git that you want to include updates to a particular file in the next commit. 
++
+[source,sh]
+----
+$ cat >> README.adoc <<EOF
+> Welcome to Demo-Project
+EOF
+
+$ git add README.adoc
+----
+
+=== Staging Changes
+. In conjunction with `git add` commands, you'll also need `git status` to view the state of the working directory and the staging area. The staging area is one of Git's more unique features. You can think of it as a buffer between the working directory and the project history. The staging area is considered one of the "three trees" of Git, along with, the working directory, and the commit history.
++
+[source,sh]
+----
+$ git status
+----
++
+.Status output
+[source,textinfo]
+----
+On branch main
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+	new file:   README.adoc
+----
+
+=== Commit Changes
+. The `git commit` command captures a snapshot of the project's currently staged changes. Committed snapshots can be thought of as “safe” versions of a project. Git will never change them unless you explicitly ask it to.
++
+[source,ssh]
+----
+$ git commit -m "first commit"
+----
++
+.Commit Output
+[source,textinfo]
+----
+[main (root-commit) c96dc48] first commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 README.adoc
+----
+
+
+== Pushing Content to Remote Repository
+In this section you will add remote repository in local git repository, and push all commits to remote Gitlab repository.
+
+=== Add GitLab repository to local git
+. You need find Gitlab remote repository project URL which you will add in local git repository. As follows-
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Your projects` on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `clone` button which will pop context menu.
+.. Copy URL defined under `clone with HTTP`.
++
+.Repository URL
+image::../images/gitlab_project_clone_url.png[]
+
+
+. Now, you can use `git remote` command to add remote repository as follows -
++
+[source,sh]
+----
+$ git remote add origin http://bastion.example.com:5050/devops/demo-project.git
+----
+
+. To view added remote repositories, You following command.
++
+[source,sh]
+----
+$ git remote -v
+----
++
+.Remote repository Output
+[source=text]
+----
+origin	http://bastion.example.com:5050/devops/demo-project.git (fetch)
+origin	http://bastion.example.com:5050/devops/demo-project.git (push)
+----
+
+
+=== Push Content To Remote Repository
+
+. You can use `git push` command to push all your local commited contents to remote repository.
++
+[source,sh]
+----
+$ git push -u origin main
+----
++
+IMPORTANT: Enter `devops` and `r3dh4t1!` as username and password, when prompted.
++
+.Push Output
+[source,textinfo]
+----
+Username for 'http://bastion.example.com:5050': devops
+Password for 'http://devops@bastion.example.com:5050': 
+Enumerating objects: 3, done.
+Counting objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 231 bytes | 231.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0
+To http://bastion.example.com:5050/devops/demo-project.git
+ * [new branch]      main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+----
+
+. To verify content on remote repository, you can follow the steps.
+.. Login to GitLab WebUI.
+.. Click on *`Menu` -> `Projects` -> `Your projects`* on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `README.adoc` file.
+.. Match the content of file with your local repository.
+
+
+== Securing Repository Connection 
+You have seen in previous steps, you work locally with git and then push the commits to GitLab remote repository over the network. So communication between Git and Gitlab should be secure. To secure communication, you can use ssh protocol. You also get benefit of using SSH in authentication because after ssh key implementation, you don’t need to supply your username and password each time you push content to remote repository. In this part of the lab you will implement secure communication. 
+
+=== SSH keys
+SSH public key authentication improves security considerably as it frees the users from remembering complicated passwords. The ssh public key encryption uses Asymmetric Cryptography algorithms, works with two separate keys. These two keys form a pair that is specific to each user.
+
+.Each SSH key pair includes two keys:
+* *Public Key:* This key gets copied to ssh server, In your case, GitLab Server.
+* *Private Key:* This key remains with the user.
+
+. You can use `ssh-keygen` command line tool to generate ssh private and public key pair. However, we have already stored private and public key in `devops` user's `$HOME/.ssh` directory which you will use in this lab. You only need to copy content of public key as follows-
++
+[source,sh]
+----
+$ cat $HOME/.ssh/${GUID}key.pub
+----
++
+.Sample Output
+[source=text]
+----
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZ9A8D6Mbs5U+lVw8UQ9X47qsAGuyJFGgWwBcLrZilOaA1Gr6lvi
+---< OUTPUT OMIT >---
+----
++
+NOTE: Copy the output of public key, later you will paste content in GitLab using WebUI .
+
+=== Add Public Key in GitLab
+. Following steps will guide you how to add ssh public.
+.. Login to GitLab WebUI.
+.. Click on user's profile picture on left side of the top bar.
+.. Then click on `Preferences`.
++
+.Preferences
+image::../images/gitlab_preferences.png[]
+.. Then click on `SSH Keys` from side bar.
+.. Then paste your public key (previouly copied) in Key box.
+.. Leave rest to default.
+.. Click on `Add key` button to save.
+
+
+=== Use Secure Remote Repository
+. After adding ssh public key in GitLab, you need to change remote repository URL to ssh in your local git repository.
+
+.. You can list remote repository using `git remote` command line. Currently you are using http url for remote repository which you will replace with ssh url, later in following steps.
++
+[source,sh]
+----
+$ git remote -v
+----
++
+.Remote URL output
+[source,textinfo]
+----
+origin	http://bastion.example.com:5050/devops/demo-project.git (fetch)
+origin	http://bastion.example.com:5050/devops/demo-project.git (push)
+----
+
+. You need to find ssh GitLab remote repository URL, which you will replace with above remote urls.
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Your projects` on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `clone` button which will pop context menu.
+.. Copy URL defined under `clone with SSH`.
++
+.SSH URL
+image::../images/gitlab_project_ssh_clone_url.png[]
+
+. You can use `git remote set-url` command to replace existing URL with new. Once replaced you will be using ssh protocol whenever you push commited content to remote repository.
++
+[source=text]
+----
+$ git remote set-url  origin ssh://git@bastion.example.com:2224/devops/demo-project.git
+$ git remote -v
+----
++
+.Remote URLs output
+[source,textinfo]
+----
+origin	ssh://git@bastion.example.com:2224/devops/demo-project.git (fetch)
+origin	ssh://git@bastion.example.com:2224/devops/demo-project.git (push)
+----
+
+=== Verify Secure Connection
+. You can verify secure by just pushing new commit to remote repository as follows-
++
+[source=text]
+----
+$ cat >> README.adoc <<EOF
+Test Line
+EOF
+$ git add README.adoc
+$ git commit -m "test"
+$ git push origin
+----
++
+NOTE: This time it does not prompt for username and password because of ssh key based authentication. If it prompts for username/password which mean you have missed one of the previous steps so re do them.
++
+.Push output
+[source,textinfo]
+----
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Writing objects: 100% (3/3), 266 bytes | 266.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0
+To ssh://bastion.example.com:2224/devops/demo-project.git
+   2b61c1c..55d9f02  main -> main
+----
+
+
+== Creating Branch
+In Git, Branching means you diverge from the main line of development and continue to do work without messing with that main line. When you want to add a new feature or fix a bug, you spawn a new branch to encapsulate your changes.
+
+=== Add New Branch
+. You can use `git checkout` command to switch or create new development branch from main branch as follows-
++
+[source,sh]
+----
+$ git checkout -b dev-branch
+----
+
+. You can use `git branch` command to list all of the existing branches.
++
+[source,textinfo]
+----
+$ git branch
+----
++
+.Branch output
+[source,textinfo]
+----
+* dev-branch
+  main
+----
++
+NOTE: The branch name with the asterisk is your current branch. 
+
+
+=== Push Branch to Remote Repository
+. To push local branch `dev-branch` to remote repository. You need to run following command.
++
+[source,sh]
+----
+]$ git push origin dev-branch
+----
+
+. To verify that local branch has been pushed. You can use following steps-
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Your projects` on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `Branches`
++
+.Branches Link
+image::../images/gitlab_branch.png[]
+.. Next page will display new branch `dev-branch` along with other branches.
+
+
+== Create and Merge Pull Request
+Pull request is a feature that let you tell other developers about changes you've pushed to your remote branch, in your case Gitlab `dev-branch` repository. Gitlab provides a user-friendly web interface to open a pull request. Once a pull request is opened, you can discuss and review the potential changes with collaborators before your changes are merged into the main branch.
+
+
+=== Create, Stage and Commit
+In this section, you will create a simple playbook as code, then you will commit the changes in local repository.
+
+. You can follow the steps to create `main.yml` playbook in local git `dev-branch`.
++
+[source,sh]
+----
+$ git checkout dev-branch
+$ cat >> main.yml <<EOF
+---
+- name: Play for PR
+  hosts: localhost
+  tasks:
+    - name: Welcome message
+      debug:
+        msg: "PR is merged"
+EOF
+----
+
+. You can commit your changes as follows-
++
+[source,sh]
+----
+$ git add main.yml
+$ git commit -m "Add main.yml"
+----
++
+.Commit Output
+[source,textinfo]
+----
+[dev-branch 5eb2dd4] Add main.yml
+ 1 file changed, 7 insertions(+)
+ create mode 100644 main.yml
+----
+
+=== Push Content
+. After commit, you need to push your local changes to remote `dev-branch` repository.
++
+[source,sh]
+----
+$ git push origin dev-branch
+----
++
+.Push Output
+[source,textinfo]
+----
+Enumerating objects: 4, done.
+Counting objects: 100% (4/4), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 366 bytes | 366.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0
+remote: 
+remote: To create a merge request for dev-branch, visit:
+remote:   http://bastion.example.com:5050/devops/demo-project/-/merge_requests/new?merge_request%5Bsource_branch%5D=dev-branch
+remote: 
+To ssh://bastion.example.com:2224/devops/demo-project.git
+   55d9f02..5eb2dd4  dev-branch -> dev-branch
+----
+
+
+=== Create Pull Request
+. You should create Pull Request (which is often called as `PR`) to discuss the changes with other developers before it gets merged. You can create PR as follows - 
+
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Your projects` on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `main` box and select `dev-branch` from drop down list.
++
+.Select Branch
+image::../images/gitlab_select_branch.png[]
+
+.. Then click on `Create merge request` button on same page.
++
+.Create Merge Request Button
+image::../images/gitlab_merge_request.png[]
+
+.. Complete New merge request as follows and leave rest to default-
++
+.Merge Request
+[%autowidth,cols="a,a",options="header"]
+|===
+| Option | Value
+| Title | Add main.yml
+| Description | Added new main.yml playbook
+| Merge Option | Uncheck - Delete source branch when merge request is accepted
+| Merge Option | Select Squash commits when merge request is accepted
+|===
+.. Then click on `Create merge request` button to sumite PR.
+
++
+NOTE: Ideal description should have summary of changes for which you make pull request.
+
+=== Approve & Merge Pull Request
+After you create a pull request, you can ask a specific person to review the changes you've proposed. If you're an organization member, you can also request a specific team to review your changes. However, In your case- You will approve your request since you are the only person for the lab. 
+
+. Consider yourself as approver and you take following steps to approve & merge pull request.
+.. Login to GitLab WebUI.
+.. Click on `Menu` -> `Projects` -> `Your projects` on top bar.
+.. Then click on `demo-project` on next page.
+.. Then click on `Merge Requests` from side bar.
++
+.Merge Requests Menu
+image::../images/gitlab_merge_menu.png[]
+.. Click on `Open`,
+.. Then click on `Add main.yml`.
+.. Click on `Approve` button to approve request.
+.. Then click on `Merge` button to merge change in main branch.
+
+
+=== Pull Content
+Git pull updates your current local working branch, and all of the remote tracking branches. Without running git pull, your local repository will never be updated with changes from the remote. git pull should be used every day you interact with a repository with a remote, at the minimum. That's why git pull is one of the most used Git commands.
+
+. You can use `git pull` command to fetch updates from GitLab remote main branch repository to your local git main branch, as follows -
++
+[source,sh]
+----
+$ git checkout main
+$ ls -l
+README.adoc
+$ git pull
+----
++
+.Pull Output
+[source,textinfo]
+----
+--<Output Omitted>--
+From ssh://bastion.example.com:2224/devops/demo-project
+ * branch            main     -> FETCH_HEAD
+Updating 30b4d78..a5cc170
+Fast-forward
+ main.yml | 7 +++++++
+ 1 file changed, 7 insertions(+)
+ create mode 100644 main.yml
+----
+
+. After `git pull` you will be able to see main.yml in main branch. As follows-
++
+[source,sh]
+----
+$ ls -l
+----
++
+.Sample Output
+[source,textinfo]
+----
+-rw-r--r--. 1 devops users 121 Jul  5 03:27 main.yml
+-rw-r--r--. 1 devops users  26 Jul  5 03:04 README.adoc
+----
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

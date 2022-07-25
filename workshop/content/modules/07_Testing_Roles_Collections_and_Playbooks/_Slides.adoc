@@ -1,0 +1,283 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+Testing Roles, Collections and Playbooks
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+* Molecule
+* Installation
+* Terminology
+* Drivers
+* Scenario Initialization
+* Scenario Layout
+* Sequence commands
+
+
+== Molecule
+.Overview
+* Molecule
+* Why to test?
+* What can Molecule test?
+
+ifdef::showscript[]
+
+* Molecule - Ansible Molecule project is designed to aid in the development and testing of Ansible roles. Molecule provides support for testing with multiple instances, operating systems and distributions, virtualization providers, test frameworks and testing scenarios. Molecule encourages an approach that results in consistently developed roles that are well-written, easily understood and maintained.
+
+* Why to test - code needs to be maintained, avoid production outages, assert change risks.
+
+* What can Molecule test - roles, playbooks, anything you can run.
+
+endif::showscript[]
+
+
+== Installation
+.Installation
+* Recommended to use *Python Virtual Environment*
+* *pip install molecule*
+
+.Command line
+* *molecule --version*
+
+ifdef::showscript[]
+
+* Python Virtualenv - It is highly recommended that you install molecule in a python virtual environment.
+* Simple pip command which installs molecule.
+* Command Line - Molecule is simple command line tool like other linux commands.
+
+endif::showscript[]
+
+
+== Terminology
+.Molecule Terminology
+* Drivers
+* Scenario
+* Sequence commands
+
+
+ifdef::showscript[]
+
+* Driver - Molecule uses drivers to bring up Ansible ready hosts to operate on. e.g. docker, and podman etc.
+
+* scenario - we can think of a scenario as a test suite for your newly created role. You can have as many scenarios as you like and Molecule will run one after the other.
+* sequence - A sequence is a list of commands to be run.
+* command - command \~= a playbook (often embeded)
+
+endif::showscript[]
+
+
+== Drivers
+.Molecule drivers
+* *Core drivers*
+** delegated, docker, podman, Vagrant, and OpenStack
+* *Providers Plugins*
+** Libvirt, Parallels, Virtualbox, and VMware Fusion
+
+ifdef::showscript[]
+
+* Driver - Molecule uses drivers to bring up Ansible ready hosts to operate on. https://molecule.readthedocs.io/en/stable-1.18/driver/
+
+* Providers - Vagrant uses provider plugins to support managing machines onvarious virtualization platforms. There are workstation-local provider plugins such as VirtualBox and VMware Fusion/Workstation and cloud-based providers such as AWS/EC2.
+
+Molecule can be configured to give provider-specific configuration data in molecule.yml - in the vagrant.providers hash. Necessarily, the configuration requirements/options are much more complicated for cloud-based providers than they are for workstation-local virtualization provider plugins. https://molecule.readthedocs.io/en/stable-1.18/provider/index.html
+
+endif::showscript[]
+
+
+== Scenario Initialization
+* *For Role-*
+  ** molecule init role common --driver-name podman
+* *For Playbook-*
+  ** molecule init scenario --driver-name openstack
+
+ifdef::showscript[]
+
+. For Role
+* Molecule init uses galaxy under the hood to generate conventional role layouts, then it injects a molecule directory in the role and setup default directory inside the molecule directory which is default test scenario. Following are the commands to setup new role with Molecule.
+
+. For playbook
+* You can directly add molecule scenario (which is a self-contained directory containing everything necessary for testing ).
+
+endif::showscript[]
+
+
+== Scenario Layout
+
+.Standard Scenario layout
+[source,textinfo]
+----
+$ tree  
+molecule/
+└── default             <1>
+    ├── converge.yml    <2>
+    ├── create.yml      <3>
+    ├── destroy.yml     <4>
+    ├── molecule.yml    <5>
+    ├── prepare.yml     <6>
+    └── verify.yml      <7>
+----
+
+ifdef::showscript[]
+
+. default - is the default molecule scenario
+. converge.yml - is the playbook file that contains the call for your role. Molecule will invoke this playbook with ansible-playbook and run it against an instance created by the driver.
+. create.yml - is the playbook which contains container/instance provisioning tasks.
+. destroy.yml - is the playbook which is destroys the provsioned environment.
+. molecule.yml - is the central configuration entrypoint for Molecule. With this file, you can configure each tool that Molecule will employ when testing your role.
+. prepare.yml  - is the playbook which gets executed before converge.yml. It usually contains instance preparation tasks like subscriptions etc.
+. verify.yml - is the Ansible file used for testing as Ansible is the default Verifier. This allows you to write specific tests against the state of the container after your role has finished executing.
+
+endif::showscript[]
+
+== Scenario Layout (Cont..)
+.Example molecule.yml
+[source,yaml]
+----
+---
+dependency:
+  name: galaxy
+driver:
+  name: openstack
+platforms:
+  - name: molecule-test
+    image: ${MOLECULE_OPENSTACK_IMAGE}
+    flavor: ${MOLECULE_OPENSTACK_FLAVOR}
+    network: ${MOLECULE_OPENSTACK_NETWORK:-molecule}
+    fip_pool: ${MOLECULE_OPENSTACK_FIP_POOL}
+    ssh_user: ${MOLECULE_OPENSTACK_SSH_USER:-cloud-user}
+provisioner:
+  name: ansible
+verifier:
+  name: ansible
+----
+
+== Scenario Layout (Cont..)
+.Example prepare.yml
+[source,sh]
+----
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (dnf install -y python-minimal python-zipstream)
+      become: true
+      changed_when: false
+----
+
+== Scenario Layout (Cont..)
+.Example converge.yml
+[source,sh]
+----
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include test"
+      include_role:
+        name: "test"
+----
+
+== Scenario Layout (Cont..)
+.Example verify.yml
+[source,sh]
+----
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Example assertion
+    assert:
+      that: true
+----
+
+
+== Sequence commands
+.Command options
+* dependency, lint, cleanup, destroy, 
+* syntax, create, prepare, converge, 
+* idempotence, side_effect, verify, cleanup, and destroy
+* *Example-*
++
+[source,sh]
+----
+$ molecule test
+----
+
+ifdef::showscript[]
+
+* lint – run yamllint and ansible-lint on YAML files, and flake8 on the Python test files
+* destroy – make sure that any infrastructure from previous tests is gone
+* dependency – (optional) download any dependencies from Ansible Galaxy
+* syntax – run ansible-playbook --syntax-check on the molecule/default/playbook.yml file
+* create – create the instances using the configured driver (docker, ec2, vagrant, etc.)
+* prepare – (optional) run a playbook to prepare the instances after create has finished
+* converge – run molecule/default/playbook.yml on the infrastructure
+* idempotence – run the playbook again to check that nothing is marked as changed
+* side_effect – (optional) run a playbook that has side effects on the instance
+* verify – run tests on the instances (testinfra is the default)
+* destroy – tear down the infrastructure and clean up
+
+endif::showscript[]
+
+== Sequence commands  (Cont..)
+.Molecule sequence
+* create_sequence
+* check_sequence 
+* converge_sequence
+* verify_sequence
+* destroy_sequence
+* test_sequence
+
+
+ifdef::showscript[]
+
+* Molecule provides commands for manually managing the lifecycle of the instance, scenario, development and testing tools. However, we can also tell Molecule to manage this automatically within a Scenario sequence. The “test matrix” (or “test sequence”) shows everything Molecule will do to test the role:
+
+endif::showscript[]
+
+== Sequence commands  (Cont..)
+.Customizing sequence
+[source,textinfo]
+----
+$ cat molecule/default/molecule.yml
+scenario:
+  name: default   <1>
+  test_sequence:  <2>
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy
+----
+
+== == Molecule
+
+****
+[.text-center]
+Instructor Demo: *Molecule*
+****
+
+== Summary
+* Molecule
+* Installation
+* Terminology
+* Drivers
+* Scenario Initialization
+* Scenario Layout
+* Sequence commands

@@ -1,0 +1,180 @@
+:labname: Creating Ansible Collections
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+== Overview
+In this lab you will create collection and add roles created in previous lab in it. You will also modify existing `ee-osp` Execution Environment image and add new and `community.mysql` collection in it. 
+
+
+== Ansible Collections
+In this section you will create new collection called `mycollections.threetier` and add roles created in earlier lab.
+
+=== Creating Collection
+. You can use `ansible-galaxy` cli to create collection skeleton as follows.
++
+[source,sh]
+----
+$ cd $HOME/three-tier-app-roles
+$ ansible-galaxy collection init mycollections.threetierapp --init-path ./collections/ansible_collections
+----
+
+. You can list default contents of new collection as follows.
++
+[source,sh]
+----
+$ tree ./collections
+----
++
+.Tree output
+[source,textinfo]
+----
+collections/ <1>
+└── ansible_collections <1>
+    └── mycollections <2>
+        └── threetierapp <3>
+            ├── docs
+            ├── galaxy.yml
+            ├── plugins
+            │   └── README.md
+            ├── README.md
+            └── roles <4>
+
+6 directories, 3 files
+----
+.Callouts
+<1> Default directories.
+<2> Collection name space.
+<3> Collection name.
+<4> All roles goes here.
+
+=== Adding Roles
+
+. To add roles in collection, you can copy existing role or create roles in it as follows-
++
+[source,sh]
+----
+$ mv roles/* ./collections/ansible_collections/mycollections/threetierapp/roles/
+----
+. Let's list all of the roles in collection as follows.
++
+[source,sh]
+----
+$ tree -L 1 ./collections/ansible_collections/mycollections/threetierapp/roles/
+----
++
+.Tree output
+[source,textinfo]
+----
+./collections/ansible_collections/mycollections/threetierapp/roles/ <1>
+├── apache      <2>
+├── firewall    <2>
+├── haproxy     <2>
+└── mysqldb <2>
+
+4 directories, 0 files
+----
+.Callouts
+<1> Where all the roles are located in the collection.
+<2> List of roles
+
+. Now, you can remove empty old roles directory created in earlier labs.
++
+[source,sh]
+----
+$ ls roles
+$ rm -r roles
+----
+
+=== Push Content to Remote Repository
+. Push your collection from local git repository to remote gitlab repository
+
+ifeval::[{show_solution} == true]
++
+.Push Content Solutions
+****
+. You can push roles to remote repository as follows.
++
+[source,sh]
+----
+$ git add .
+$ git commit -m "Re-useable Ansible Roles"
+$ git push origin refactor-roles
+----
++
+NOTE: Enter `devops` as user and `r3dh4t1!` as password if prompted.
+****
+endif::[]
+
+== Build Execution Environment
+You have create collection and roles in the previous steps. Some of the tasks from role requires `community.mysql` collections. So in this section, you will use `$HOME/ee-osp-build` directory to modify `ee-osp` custom execution environment and add  `community.mysql` collection in it.
+
+=== Add Galaxy Dependencies
+. You just need to add `community.mysql` collections in the galaxy `requirements.yml` file as follows-
++
+[source,sh]
+----
+$ cd $HOME/ee-osp-build
+$ cat requirements.yml
+collections:
+  - openstack.cloud <1>
+  - community.general <1>
+  - ansible.posix <1>
+  - community.mysql <2>
+----
+Callouts
+<1> You have these collections in earlier labs.
+<2> Add community.mysql collection.
+
+
+
+=== Re Build Execution Environment
+
+. After adding collections in `reuqirements.yml`, just run following command.
++
+[source,sh]
+----
+$ ansible-builder build -t ee-osp:1.2.0
+----
++
+.Build output
+[source,textinfo]
+----
+File context/_build/requirements.yml had modifications and will be rewritten
+Running command:
+  podman build -f context/Containerfile -t ee-osp:1.2.0 context
+Complete! The build context can be found at: /home/devops/ee-osp-build/context
+----
+
+=== Verify Execution Environment
+
+. Let's verify custom execution environment image.
++
+[source,sh]
+----
+$ ansible-navigator images
+----
++
+.Steps to verify collections
+====
+. Type the *line number* of ee-osp image to get details.
+. Then type *2* to get list of collections, Make sure you see all of the collection, which you have installed, in the list.
+. To exit, keep on pressing <ESC> key until you are back to shell prompt.
+====
+
+
+. You will use new execution environment in next lab.
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

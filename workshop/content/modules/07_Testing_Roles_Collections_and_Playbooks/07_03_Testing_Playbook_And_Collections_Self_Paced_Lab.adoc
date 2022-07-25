@@ -1,0 +1,296 @@
+:labname: Testing Playbook and Collections
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+
+== Overview
+This lab is in continuation of the previous lab so you will use all of the settings and resources which you have done already. 
+
+As developer, You need to enhance your testing scope and also include playbook testing in your skill set. So, In this lab you will test playbook from the collection, which configures haproxy, apache, mysql and firewalld on nodes. To test you will configure molecule scenario as per following requirements.
+
+. OpenStack Nodes
++
+.Nodes Details
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Inventory Group | Description
+| {counter:cnode:1} | frontend | *loadbalancers* | This node will run haproxy.
+| {counter:cnode} | app1  
+    .2+| *backend_servers* .2+| These two nodes will run apache as backend application..
+| {counter:cnode} | app2
+| {counter:cnode} | appdb | *database_servers* | This node will run mysqldb.
+|===
+
+. OpenStack `/etc/openstack/clouds.yaml` Auth file.
+
+. `mycollections.threetierapp` collection playbook is `config.yml`.
+
+
+== Prepare Node
+. You have already OpenStack `/etc/openstack/clouds.yaml` auth file in the node so you can directly connect to node as follows.
++
+[source,sh]
+----
+$ ssh node.example.com
+----
+
+. You have already created python virtual environment in the previous lab so you can activate as follows.
++
+[source,sh]
+----
+[node]$ source $HOME/venvs/molecule/bin/activate
+----
+
+. Just to make sure that you have openstack driver, You can list molecule drivers as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule drivers
+----
++
+.Drivers output
+image:role_molecule_drivers.png[]
+
+
+== Prepare Scenario
+In this part of the lab, you will initialize and configure molecule default scenario in the project directory to test playbook. 
+
+
+=== Add Molecule Scenario
+. You have already cloned `molecule-project` in previous lab so just change your current directory to project directory as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cd $HOME/molecule-project/
+----
+
+. To initialize default molecule scenario in the project directory, you can run following command.
++
+[source,sh]
+----
+(molecule)[node]$ molecule init scenario -d openstack
+----
+
+
+=== Update molecule.yml
+
+. You need to update platforms dictionary in `molecule.yml` file so it can provision frontend, app1, app2, appdb OpenStack nodes as follows.
++
+IMPORTANT: Replace ${GUID} with four digit unique string.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/molecule.yml <<EOF
+---
+dependency:
+  name: galaxy
+driver:
+  name: openstack                     <1>
+platforms:
+  - name: frontend                    <2>
+    image: rhel-8.3                   <3>
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor <4>
+    network: ${GUID}-default-network  <5>
+    ssh_user: cloud-user              <6>
+    groups:
+      - loadbalancers                 <7>
+  - name: app1                          
+    image: rhel-8.3                     
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor 
+    network: ${GUID}-default-network    
+    ssh_user: cloud-user                
+    groups:
+      - backend_servers                 
+  - name: app2
+    image: rhel-8.3
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor
+    network: ${GUID}-default-network
+    ssh_user: cloud-user
+    groups:
+      - backend_servers
+  - name: appdb                         
+    image: rhel-8.3                     
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor 
+    network: ${GUID}-default-network    
+    ssh_user: cloud-user                
+    groups:
+      - database_servers                
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_CONFIG: /home/cloud-user/molecule-project/ansible.cfg <8>
+verifier:
+  name: ansible
+EOF
+----
++
+.Callouts
+<1> Molecule driver.
+<2> OpenStack instance name.
+<3> Instance image.
+<4> OpenStack flavor.
+<5> OpenStack network.
+<6> Ssh user for instances.
+<7> Ansible inventory groups variable.
+<8> Ansible Configuration file.
+
+
+=== Update prepare.yml
+. You need to update `prepare.yml` file with host subscription tasks as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/prepare.yml  <<EOF
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    satellite_ca_cert_url: http://satellite.example.com/pub/katello-ca-consumer-latest.noarch.rpm
+    satellite_activationkey: gpte-labs-rhel8
+    satellite_org: prod
+  tasks:
+    - name: install katello-ca-consumer package
+      ansible.builtin.dnf:
+        name: "{{ satellite_ca_cert_url }}"
+        state: present
+        disable_gpg_check: true
+
+    - name: register system and attach subs
+      community.general.redhat_subscription:
+        state: present
+        activationkey: "{{ satellite_activationkey }}"
+        org_id: "{{ satellite_org }}"
+EOF
+----
+
+=== Update converge.yml`
+. Now, you can import `mycollections.threetierapp.config.yml` collection playbook which you need to test as per lab requirements.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/converge.yml <<EOF
+---
+- name: Converge
+  import_playbook: mycollections.threetierapp.config
+EOF
+----
+
+
+=== Update verify.yml
+. The default molecule scenario does not have useful tasks in `molecule/default/verify.yml` file to verify the state of the instances. So you can update `verify.yml` as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/verify.yml <<EOF
+---
+- name: Verify
+  hosts: loadbalancers
+  gather_facts: false
+  tasks:
+  - name: Access backend server
+    uri:
+      url: http://localhost:80
+      return_content: true
+    register: web_output
+
+  - name: Example assertion
+    assert:
+      that: '"Enter User Name" in web_output.content'
+EOF
+----
+
+
+== Testing Scenario
+In this section, you will run molecule to provision OpenStack instances, execute playbook against the instances and you will also verify instances state as per the molecule default scenario settings and configurations which you did in earlier steps.
+
+
+. Your playbook uses ansible modules from following collection. So you need to install them as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > $HOME/molecule-project/requirements.yml <<EOF
+collections:
+  - containers.podman
+  - ansible.posix
+  - community.general
+  - openstack.cloud 
+  - community.mysql
+EOF
+(molecule)[node]$ ansible-galaxy collection install -r $HOME/molecule-project/requirements.yml
+----
+
+
+=== Create Sequence
+. You can run `molecule create` sequence to provision and prepare OpenStack instances as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule create
+----
++
+.Create sequence output
+image:playbook_molecule_create.png[]
+
+
+=== Converge Sequence
+. You can run `molecule converge` sequence to execute playbook as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule converge
+----
++
+.Converge Output
+image:playbook_molecule_converge.png[]
+
+
+=== Verify Sequence
+. You run `molecule verify` sequence to check the state of the OpenStack instances after your playbook has finished executing. As follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule verify
+----
++
+.Verify Output
+image:playbook_molecule_verify.png[]
+
+
+=== Destroy Sequence
+. You can run `molecule destroy` sequence to deletes all of the provisioned OpenStack instances as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule destroy
+----
+
+
+=== Test sequence
+. After running each molecule sequence one by one. Now you can run full lifecycle test sequence as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule test
+----
++
+[NOTE] 
+Molecule full test sequence destroys the instance at the end. However we can pass --destroy=never option so molecule will not destroy instance and we can use this instance to test failed task if any. The directory in which the molecule.yml resides is the Scenario’s directory.
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

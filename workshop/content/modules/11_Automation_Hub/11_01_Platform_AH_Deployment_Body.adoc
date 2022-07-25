@@ -1,0 +1,199 @@
+include::../../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../../tools/00_0_Lab_Provision.adoc[]
+include::../../tools/00_1_Lab_Connect_Environment.adoc[]
+
+
+
+
+== Private Automation Hub
+
+.Automation Hub
+Private Automation Hub is an on-premises version of Automation Hub. You can have a privately hosted location for all your Ansible content. This allows automation teams to curate which content is available from different sources, whether that is from Red Hat, the Ansible community or developed internally. You now now have the control over which content you trust.
+
+
+
+=== The goal of the lab
+In this lab, You are asked to install and configure Private Automation Hub
+
+* Explore and Verify Environment
+* Install Standalone Private Automation Hub
+
+
+
+=== Requirements and Resources
+Following are the requirements and resources to install and subscribe Red Hat Automation Controller HA cluster.
+
+. You need to install Private Automation Hub which can be download from following link- 
+*  https://access.redhat.com/downloads/content/480
+
+. Login with your RHN account to download the setup.
+
+
+. Following are the nodes on which you need to install Red Hat Automation Controller-
+
++
+.Nodes Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Use | Nodes
+.3+^.^|automationhubs |
+|===
+
+. Use *r3dh4t1!* for all kind of password used to prepare installation inventory for Red Hat Automation Controller. 
+
+. You can use following Auth details to subscribe Red Hat Automation Controller HA cluster-
+
+
+
+=== Explore and Verify Environment
+. In this section, you need to explore Automation Controller nodes and check connectivity. For your info, There are ansible groups which gets populated when you run `lab deploy -i ac` command and respective hosts gets placed under the groups. Below is list of groups which you can use to explore-
+
+*automationhubs
+
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+. You can explore environment as follows-
++
+[source,sh]
+----
+$ ansible all --list-hosts
+----
++
+.Sample Output
+[source,textinfo]
+----
+  ----
+  hosts (11):
+    control2.example.com
+    control1.example.com
+    managednode2.example.com
+    execution2.example.com
+    execution1.example.com
+    control3.example.com
+    ah.example.com
+    managednode1.example.com
+    db.example.com
+    satellite.example.com
+    bastion.example.com
+----
+
+. Verify connectivity ofAutomation Controller nodes
++
+[source,sh]
+----
+$ ansible automationhubs -m ping
+----
++
+.Sample Output
+[source,textinfo]
+----
+ah.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+----
+****
+endif::[]
+
+
+=== Install Private Automation Hub
+In this section, you need to install and subscribeAutomation Controller as the requirements and resources given.
+
+. Navigate to https://access.redhat.com/downloads/content/480
+. Download Automation Controller setup on your laptop for the Ansible Automation Platform <latest-version> Setup
+. Remote Copy setup from your laptop to bastion.
+. Configure Automation Hub Inventory
+* *automationhubs* group host should be used for Automation Hub node.
+* User *r3dh4t1!* for admin and postgres user.
+
+. Run Automation Hub Setup
+
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+
+. Navigate to https://access.redhat.com/downloads/content/480
+
+. Click Download Now for the Ansible Automation Platform 2.1.0-1 Setup on your laptop.
+
+. Remote Copy setup tar to bastion host.
+
++
+[source,sh]
+----
+laptop$ scp ansible-automation-platform-setup-2.1.0-1.tar.gz opentlc-id@bastion.$GUID.dynamic.opentlc.com:/tmp/
+----
+
+. Extract the files:
+
++
+[source,sh]
+----
+$ sudo su - devops
+$ ansible localhost -m unarchive -a "src=/tmp/ansible-automation-platform-setup-2.1.0-1.tar.gz dest=/home/devops" 
+----
+
+. You can configure inventory file to run Private Automation Hub setup as follows-
++
+[source,sh]
+----
+$ cd ansible-automation-platform-setup-2.1.0-1/
+$ cat > inventory <<EOF
+[automationcontroller]
+
+
+[automationhub]
+ah.example.com
+
+[all:vars]
+ansible_become=true
+automationhub_admin_password= r3dh4t1!
+
+automationhub_pg_host=''
+automationhub_pg_port=''
+
+automationhub_pg_database='automationhub'
+automationhub_pg_username='automationhub'
+automationhub_pg_password=r3dh4t1!
+automationhub_pg_sslmode='prefer'
+
+EOF
+----
+
+. You can execute setup.sh script to install Private Automation Hub. 
++
+[source,sh]
+----
+$ ./setup.sh
+----
++
+[NOTE]
+====
+* Remember that not all red output lines are `fatal` errors in Ansible.
+** e.g. ansible supports `ignore_errors` at a `task` and `block` level.
+* The setup may take upto 10 minutes to finish.
+====
+****
+endif::[]
+
+
+=== Explore Automation Hub
+* Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49211
+* Login as `admin` and use password `r3dh4t1!`.
+
+
+.Congratulation!
+****
+You have successfully completed Lab. Now you can move to next lab.
+****

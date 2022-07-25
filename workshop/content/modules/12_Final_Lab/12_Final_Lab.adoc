@@ -1,0 +1,401 @@
+:labname: Final Lab: Ansible Automation Platform 2
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+=== Prepare Lab Nodes
+
+. You need run following `Lab Manager` command to provision nodes. 
++
+[source,sh]
+----
+$ lab deploy -i finallab
+----
++
+NOTE: You can run `lab destroy -i finallab` in case provisioning fails and then re-run above command to re-deploy nodes.
+
+
+. Following lab nodes will be available after lab deployment.
++
+.Environment Nodes
+[cols="^1,^4a,^4a",options="header"]
+|===
+| Sr No              | Node              |   Description
+| {counter:cnode:1}  | ac.example.com    |   Ansible Automation Controller node.
+| {counter:cnode}    | hub.example.com   |   Private Automation Hub node.
+|===
+
+
+== Red Hat Delivery Specialist - Ansible Advanced Final Lab
+
+.Goals
+* Assess hands-on proficiency with Red Hat® Ansible® Automation Platform advanced deployment topics.
+* Complete this course leading to Red Hat Delivery Specialist - Ansible Advanced accreditation.
+
+.Criteria
+* The final lab takes the average learner about eight hours to complete.
+* The final lab is an individual effort—​complete the final lab without collaboration.
+* The final lab simulates *Statement of Work* for a Red Hat Consulting engagement.
+
+.Grading 
+* You should create a fully functional OpenShift 4 cluster which satisfies all criteria listed below. The setup should pass all `lab` tests.
+
+
+== Red Hat Consulting - Project Scoping Document 
+
+.Level of Effort Estimate
+[cols="^4a,^4a",options="header"]
+|===
+|  Project Role | Estimated Hours 
+| Consultant    | 8 
+|===
+
+
+=== Scope of Services
+* Red Hat Consulting will support the customer with the following task areas:
+
+
+=== Customer Prerequisites and Activities
+* Facilitation Techniques and Practices:
+** Red Hat will collaborate with Client to use team facilitation techniques and practices, such as those found in Open Practice Library, in providing the Professional Services.
+** Red Hat will disclose to Client any team facilitation techniques and practices it used in Providing the Professional Services and will mentor the Client’s teams on relevant facilitation techniques.
+
+
+
+=== Tasks Description
+
+Red Hat Consulting will help customer in installing Red Hat Automation Platform 2 components(Automation Controller and Private Automation Hub). Consultant will help customer in building custom EE to support cutomer's cloud environment and deploy three tier application. 
+
+Red Hat Consulting will work with customer's *dev* team to utilise their existing Ansible Content for provisioning infrastructure and deploy application. 
+
+.Red Hat consultant will design the automation infrastructure for the client based on the diagram. 
+image::finallab.jpg[width=100%]
+
+== Tasks
+=== Deploy Red Hat Automation Platform 2 - Components
+
+==== Ansible Automation Controller
+. Red Hat Ansible Automation Platform v2 setup package from the link.
++
+[%autowidth,options="header"]
+|===
+| Package | Source
+| AAP setup tar | https://www.opentlc.com/ansible-automation-platform-2-assets/ansible-automation-platform-setup-2.1.0-1.tar.gz
+|===
+
+. Use following password for admin user during the installation.
++
+[options="header"]
+|===
+| Parameter | Value
+| admin_password   | *r3dh4t1!*
+|===
+
+
+. Deploy Standalone *Ansible Automation Controller* with a database on the same node.
++
+.Node Details
+[options="header"]
+|===
+| Node Name | Public Access via Proxy
+| ac.example.com | https://bastion.${GUID}.dynamic.opentlc.com:49210/
+|===
++
+.Subscription Details
+[cols="a,a",options="header"]
+|===
+| Type | Value
+| Username | admin
+| Password | r3dh4t1!
+|===
+
+==== Private Automation Hub
+. Deploy Standalone *Private Automation Hub* with a database on the same node.
++
+.Node Details
+[options="header"]
+|===
+| Node Name | Public Access via Proxy
+| hub.example.com | https://bastion.${GUID}.dynamic.opentlc.com:49211/
+|===
+
+
+. Use following password for admin user during the installation.
++
+[options="header"]
+|===
+| Parameter | Value
+| automationhub_admin_password  | *r3dh4t1!*
+|===
+
+
+=== Build Execution Environment
+
+As consultant you have to build custom Execution Environment with python librarires and Ansible content collection to support 
+ customers cloud infrastructure and applications. 
+
+. Build Exection Environment with following characterstics.
++
+.Execution Environment
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No | Type | Name 
+| {counter:ee:1} | Execution Environment Image | ee-mitzidotcom:1.0.0 
+| {counter:ee:2} | Python Library | openstacksdk==0.36.5 
+| {counter:ee:} .6+| Collections | openstack.cloud 
+| {counter:ee:} | community.general
+| {counter:ee:} | ansible.posix
+| {counter:ee:} | community.mysql
+| {counter:ee:} |  http://bastion.example.com:5050/devops/mitzidotcom
+|===
+
+
+. Push *ee-finallab:1.0.0* Execution Environment Image to *Private Automation Hub* (hub.example.com).
++
+[NOTE]
+Please explore the *finallab-collection* repository before creaing execution environment. 
+
+=== Provision Infrastructure
+As a consultant you have to setup Automation Controller for managing cloud infrastructure. You will be creating all
+ the artifacts needed.
+
+. Ansible Automation Controller - Container Registry Credentials details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters            | Values
+| {counter:crc:1}   | Name                  | mitzidotcom_registry_cred
+| {counter:crc}     | Organization          | Default
+| {counter:crc}     | Credential Type       | Container Registry 
+| {counter:crc}     | Authentication URL    | hub.example.com
+| {counter:crc}     | Username              | admin
+| {counter:crc}     | Password              | r3dh4t1!
+| {counter:crc}     | Verify SSL            | Uncheck
+|===
+
+
+. Ansible Automation Controller - Execution Environment details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No                 | Parameters            | Values
+| {counter:eecrc:1}     | Name                  | ee-mitzidotcom
+| {counter:eecrc}       | Image                 | hub.example.com/ee-mitzidotcom:1.0.0
+| {counter:eecrc}       | Pull                  | `Only Pull the image if not present before running`
+| {counter:eecrc}       | Organization          | Default
+| {counter:eecrc}       | Registry credential   | mitzidotcom_registry_cred
+|===
+
+
+. Ansible Automation Controller - Project details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters                        | Values
+| {counter:pd:1}    | Name                              | mitziinfra
+| {counter:pd}      | Organization                      | Default
+| {counter:pd}      | Execution Environment             | ee-mitzidotcom
+| {counter:pd}      | Source Control Credential Type    | Git
+| {counter:pd}      | Source Control URL                | http://bastion.example.com:5050/devops/mitziinfra.git
+|===
+
+. Ansible Automation Controller - Cloud Credentials details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters            | Values
+| {counter:clc:1}   | Name                  | mitzi_cloud_credential
+| {counter:clc}     | Organization          | Default
+| {counter:clc}     | Credential Type       | Openstack 
+| {counter:clc}     | Authentication URL    | Value of `auth_url` from clouds.yaml
+| {counter:clc}     | Username              | Value of `username` from clouds.yaml
+| {counter:clc}     | Password              | Value of `password` from clouds.yaml
+| {counter:clc}     | Project(Tenant Name)  | Value of `project_name` from clouds.yaml
+| {counter:clc}     | Domain Name           | Default
+| {counter:clc}     | Verify SSL            | Keep it checked
+|===
+
++
+[NOTE]
+`/home/devops/materials/clouds.yaml` has respective values to be populated in cloud credential.
+
+. Ansible Automation Controller - Machine Credential details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No           | Parameters                      | Values
+| {counter:mcd:1} | Name                            | mitzi_ssh_key
+| {counter:mcd}   | Organization                    | Default
+| {counter:mcd}   | Credential Type                 | Machine
+| {counter:mcd}   | Username                        | cloud-user
+| {counter:mcd}   | SSH Private Key                 | Paste content of `/home/devops/.ssh/${GUID}key.pem`
+| {counter:mcd}   | Privilege Escalation Method     | sudo
+|===
+
+. Ansible Automation Controller - Job Template (Infra) details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters    | Values
+| {counter:jtd:1}   | Name          | MitziDotcom  Infra Provision
+| {counter:jtd}     | Job Type      | Run
+| {counter:jtd}     | Inventory     | Demo Inventory
+| {counter:jtd}     | Project       | mitiziinfra
+| {counter:jtd}     | Playbook      | main.yml
+| {counter:jtd}     | Credentials   | *Openstack* (mitzi_cloud_credential)
+| {counter:jtd}     | Variables     | guid: `your lab GUID`
+|===
+
+. Launch Job Template to provision infrastructure.
+
+. To verify cloud instances from `bastion` host.
++
+[source,sh]
+----
+$ openstack server list --os-cloud=${GUID}-project
+----
++
+.Instance List
+image:server_list.png[]
+
+
+=== Deploy Application
+
+As consultant you will be setting up all the artifacts on Automation Controller to deploy application on cloud instances you have provisioned. 
+
+. Application project details.
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No           | Parameters                      | Values
+| {counter:apd:1} | Name                            | mitziapp
+| {counter:apd}   | Organization                    | Default
+| {counter:apd}   | Execution Environment           | ee-mitzidotcom
+| {counter:apd}   | Source Control Credential Type  | Git
+| {counter:apd}   | Source Control URL              | http://bastion.example.com:5050/devops/mitziapp.git
+|===
+
+. Application inventory details.
++
+.Inventory
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No           | Parameters | Values
+| {counter:aid:1} | Name | MitziDotcom Cloud Inventory
+| {counter:aid} | Organization | Default
+|===
+
++
+.Inventory Source
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters    | Values
+| {counter:aisd:1}  | Name          | OSP Dynamic Inventory
+| {counter:aisd}    | Source        | OpenStack
+| {counter:aisd}    | Credential    | mitzi_cloud_credential
+3.+^.^a|Sync *OSP Dynamic Inventory* to populate inventory for dynamic groups and host information.
+|===
+
++
+.Create Static Groups to support application deployer.
+[cols="^.^1,^.^9a",options="header"]
+|===
+| Sr No            | Group Names
+| {counter:asg:1}  | database_servers
+| {counter:asg:1}  | loadbalancers
+| {counter:asg:1}  | backend_servers
+|===
+
++
+.Static group with dynamic child group.
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Static Groups     | Dynamic Groups
+| {counter:asdcg:1} | database_servers  | meta-AnsibleGroup_database_servers
+| {counter:asdcg}   | loadbalancers     | meta-AnsibleGroup_loadbalancers
+| {counter:asdcg}   | backend_servers   | meta-AnsibleGroup_backend_servers
+|===
+
+
+. Application Job Template
++
+[cols="^.^1,^.^3a,^.^5a",options="header"]
+|===
+| Sr No             | Parameters | Values
+| {counter:ajt:1}   | Name | MitziDotcom App Deployment
+| {counter:ajt}     | Job Type | Run
+| {counter:ajt}     | Inventory | MitziDotcom Cloud Inventory
+| {counter:ajt}     | Credentials | mitzi_ssh_key
+| {counter:ajt}     | Project | mitiziapp
+| {counter:ajt}     | Playbook | main.yml
+|===
+
+. Launch Job Template to deploy application.
+
+. Use following commands to verify application deployment.
+* Get instance's IP addresss.
++
+[source,sh]
+----
+$ openstack server list -c Name -c Status -c Networks --os-cloud=$GUID-project
+----
++
+.Command Output
+image:instance_ip.png[width=100%]
+
+* Access userinfo application.
++
+[source,sh]
+----
+$ curl 192.168.50.230/?name=root
+----
++
+NOTE: Replace IP address
++
+.Application output
+image:curl_output.png[width=100%]
+
+== Test and Grade Your Setup
+
+. Login to your bastion/VM host as `devops` user.
+
+. Run the following command:
++
+[source,bash]
+----
+$ lab grade -c aap2 -l finallab
+----
+
+. The command will display the test results. Make sure it passed all the tests.
+
+. Submit this file with your class details as described in the *Submission* section.
+
+
+== Submission
+
+. After the command above passed all the tests, find the results file in */tmp/aap2/finallab_report.txt*.
+. Submit this file with your class details as described in the *Submission* section.
+.. *scp* the */tmp/aap2/finallab_report.txt* from the bastion host to your laptop and then upload to the LMS.
+. To help keep things organized, please indicate the following in a note in the LMS:
+
+.. Instructor
+
+.. Class location
+
+.. Class date
+
+Your feedback is very important to us. Please fill out your survey.
+
+====
+.Well Done!
+****
+[.text-center]
+Red Hat PFE Team want to congratulate you on the successful completion of course *{labname}*. Your hard work and efforts are very much appreciated.
+****
+====

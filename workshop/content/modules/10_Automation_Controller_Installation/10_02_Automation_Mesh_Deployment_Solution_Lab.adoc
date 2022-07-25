@@ -1,0 +1,3 @@
+:labname: Tower HA
+:show_solution: true
+include::../modules/10_Automation_Controller_Installation/10_02_Automation_Mesh_Deployment_Body.adoc[]

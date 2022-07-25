@@ -1,0 +1,302 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+Developer Resources
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+
+* Red Hat Ansible Automation Platform
+* Ansible Content Navigator
+  ** Installation
+  ** Modes
+* Ansible Builder
+  ** Installation
+  ** Definition file
+  ** Executing the build
+  ** Publishing an Automation Execution Environment
+* Summary
+
+== Red Hat Ansible Automation Platform
+
+* System Requirements & Platform Subscription
++
+[%autowidth,cols="a,a",options="header"]
+|===
+| Type  | Required
+| Operation system | Red Hat Enterprise Linux 8.4 or later 64-bit (x86)
+| Ansible | version 2.11 required
+| Subscription | Red Hat Ansible Automation Platform
+|===
+
+
+== Automation Content Navigator
+
+* What is Automation Content Navigator?
+* Use of Automation content navigator.
+
+ifdef::showscript[]
+
+* As a content creator, you can use Automation content navigator to develop Ansible playbooks, collections, and roles that are compatible with the Red Hat Ansible Automation Platform. You can use Automation content navigator "Local development machines" and "Automation execution environments", with seamless and predictable results across them all.
+
+* Automation content navigator is a command line, content-creator-focused tool with a text-based user interface. You can use Automation content navigator to:
+
+. Launch and watch jobs and playbooks.
+. Share stored, completed playbook and job run artifacts in JSON format.
+. Browse and introspect automation execution environments.
+. Browse your file-based inventory.
+. Render Ansible module documentation and extract examples you can use in your playbooks.
+
+endif::showscript[]
+
+
+// == Automation Content Navigator
+
+// * Ansible Vs Automation Content Navigator
+// +
+// [%autowidth,cols="a,a",options="header"]
+// |===
+// | Ansible navigator command	| Ansible CLI command
+// | ansible-navigator collections | ansible-galaxy collection
+// | ansible-navigator config | ansible-config
+// | ansible-navigator doc | ansible-doc
+// | ansible-navigator inventory | ansible-inventory
+// | ansible-navigator run | ansible-playbook
+// |===
+
+// * Use *ansible-navigator --help* 
+
+// ifdef::showscript[]
+
+// The Automation content navigator commands run familiar Ansible CLI commands in -m stdout mode. You can use all the subcommands and options available in the related Ansible CLI command. Use ansible-navigator --help for details.
+// endif::showscript[]
+
+
+== Automation Content Navigator
+
+.Installation
+. Prerequisites
+.. RHEL 8 or later.
+.. Valid Red Hat Subscription.
+
+
+== Automation Content Navigator
+.Modes
+* stdout 
+* interactive
+
+
+ifdef::showscript[]
+
+You can review your Ansible configuration with the Automation content navigator text-based user interface in interactive mode and delve into the settings. Automation content navigator pulls in the results from an accessible Ansible configuration file, or returns the defaults if no configuration file is present.
+. Execution Environments (:images)
+. Inventory (:inventory)
+. Collections (:collections*)
+. Executing a Playbook (:run)
+. Review Playbook Result (:replay)
+. Ansible Configuration (:config)
+
+== Automation Content Navigator
+.Navigator Configuration
+* The command line
+* Within a settings file
+* As an environment variable
+* ANSIBLE_NAVIGATOR_CONFIG - The settings file path environment variable if set.
+* ./ansible-navigator.<ext> - The settings file within the current project directory, with no dot in the file name.
+* \~/.ansible-navigator.<ext> 
+endif::showscript[]
+
+
+== Automation Content Navigator
+
+****
+[.text-center]
+Instructor Demo: *Ansible Content Navigator*
+****
+
+
+
+== Ansible Builder
+
+* What is Ansible Builder?
+* Why use Ansible Builder?
+
+
+ifdef::showscript[]
+
+* *About Ansible Builder*
+Ansible Builder is a command line tool that automates the process of building automation execution environments by using the metadata defined in various Ansible Collections, as well as by the user.
+
+* *Why use Ansible Builder?*
+Before Ansible Builder was developed, Automation Platform users would potentially run against dependency issues and multiple error messages as they attempted to create a custom virtual environment or container that had all of their required dependencies installed.
+
+Through the use of an easily customizable definition file, Ansible Builder installs Ansible, specified Collections and any of its dependencies so that all of the necessary requirements to get jobs running are fulfilled behind the scenes.
+endif::showscript[]
+
+
+== Ansible Builder
+.Installation
+
+* Red Hat Ansible Automation Platform subscription
+* Community version (PyPI)
+
+
+
+== Ansible Builder
+
+.Definition file
+
+* Sample Definition file
++
+[source,textinfo]
+----
+version: 1
+
+build_arg_defaults: <1>
+  ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "-v"
+
+ansible_config: 'ansible.cfg' <2>
+
+dependencies: <3>
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps: <4> 
+  prepend: |
+    RUN whoami
+    RUN cat /etc/os-release
+  append:
+    - RUN echo This is a post-install command!
+    - RUN ls -la /etc
+----
+
+
+
+ifdef::showscript[]
+
+Once you have Ansible Builder installed, we will need to create a definition file which Ansible Builder will use to create your automation execution environment image. The high level process to build an automation execution environment image is for Ansible Builder to read and validate your definition file, then create a Containerfile, and finally pass the Containerfile to Podman which then packages and creates your automation execution environment image. The definition file we will create for Ansible Builder is in yaml format and contains different sections which we will discuss in further detail.
+
+. Lists default values for build arguments
+. Specifies the ansible.cfg file path
+. Specifies the location of various requirements files
+. Commands for additional custom build steps
+
+* Breakdown of definition file content
++
+A definition file is necessary for building automation execution environments with Ansible Builder, as it specifies the content which will be included in the automation execution environment container image.
+
+. Build args and base image:
++
+The build_arg_defaults section of the definition file is a dictionary whose keys can provide default values for arguments to Ansible Builder. following is list of values that can be used in build_arg_defaults:
++
+|===
+|Value	|Description
+|ANSIBLE_GALAXY_CLI_COLLECTION_OPTS ||Allows the user to pass the \–pre flag to enable the installation of pre-releases collections
+-c is the equivalent of setting verify_ssl to false
+|EE_BASE_IMAGE |Specifies the parent image for the automation execution environment, enabling a new image to be built that is based off of an already-existing image
+
+|EE_BUILDER_IMAGE |Specifies the image used for compiling-type tasks
+|===
++
+The values given inside build_arg_defaults will be hard-coded into the Containerfile, so these values will persist if podman build is called manually.
+
+
+* Ansible config file path
++
+When using an ansible.cfg file to pass a token and other settings for a private account to an automation hub server, list the config file path (relative to where the definition file is located) as a string to enable it as a build argument in the initial phase of the build.
+
+The ansible.cfg file should be formatted like the following example:
+* Galaxy:
++
+The galaxy entry points to a valid requirements file for the ansible-galaxy collection install -r …​ command. The entry requirements.yml may be a relative path from the directory of the automation execution environment definition’s folder, or an absolute path.
+
+* Python:
++
+The python entry in the definition file points to a valid requirements file for the pip install -r …​ command. The entry requirements.txt is a file that installs extra Python requirements on top of what the Collections already list as their Python dependencies. It may be listed as a relative path from the directory of the automation execution environment definition’s folder, or an absolute path. 
+
+
+* System:
++
+The system entry in the definition points to a bindep requirements file, which will install system-level dependencies that are outside of what the collections already include as their dependencies. It may be listed as a relative path from the directory of the automation execution environment definition’s folder, or an absolute path.
+
+
+To demonstrate this, the following is an example bindep.txt file that adds the libxml2 and subversion packages to a container:
+
+Link: https://access.redhat.com/documentation/en-us/red_hat_ansible_automation_platform/2.1/html/ansible_builder_guide/assembly-using-builder
+
+
+The prepend and append commands may be specified in the additional_build_steps section. These will add commands to the Containerfile which will run either before or after the main build steps are executed.
+
+The syntax for additional_build_steps must be one of the following:
+
+endif::showscript[]
+
+
+
+
+== Ansible Builder
+
+.Executing the build
+. *ansible-builder build*
+. *ansible-builder build -f definition-file-name.yml*
+
+
+ifdef::showscript[]
+
+* Once you have created a definition file Procedure, To build an automation execution environment image, you can run
+. ansible-builder build
++
+By default, Ansible Builder will look for a definition file named *execution-environment.yml* but a different file path can be specified as an argument via the -f flag:
+. ansible-builder build -f definition-file-name.yml
+
++
+where definition-file-name specifies the name of your definition file.
+endif::showscript[]
+
+
+== Ansible Builder
+.Publishing an Automation Execution Environment
+* podman login -u=username -p=password automation-hub-url
+* podman push automation-hub-url/ee-image-name
+
+
+ifdef::showscript[]
+
+A container registry is a repository for storing container images. Once you have built an automation execution environment image, you’ll be ready to push that container image to the registry portion of your instance of automation hub.
+
+With your automation hub URL on hand, run the following command to log in to Podman, substituting your username, password, and automation hub URL:
+endif::showscript[]
+
+
+== Ansible Builder
+
+****
+[.text-center]
+Instructor Demo: *Ansible Builder*
+****
+
+== Summary
+
+* Red Hat Ansible Automation Platform
+* Ansible Content Navigator
+  ** Installation
+  ** Modes
+* Ansible Builder
+  ** Installation
+  ** Definition file
+  ** Executing the build
+  ** Publishing an Automation Execution Environment
+* Summary

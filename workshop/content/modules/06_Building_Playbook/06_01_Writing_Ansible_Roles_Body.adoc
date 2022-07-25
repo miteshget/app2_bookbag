@@ -1,0 +1,569 @@
+:labname: Writing Ansible Roles
+
+include::../../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+// :show_solution: true
+
+include::../../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+In this lab you will clone git repository which contains multiple playbooks and configuration files for doing specific task on managed host so you have to convert cloned playbooks in re-usable ansible artifacts like Roles and also convert static files to dynamic files using Jinja syntax. 
+
+
+=== Introduction of Roles
+Roles are ways of automatically loading certain contents based on a known file structure. A role contains a set of related tasks, variables, defaults, handlers, and even modules or other plugins in a defined file-tree. Unlike variables files, task files, or playbooks. Grouping content by roles also allows easy sharing of roles with other users. Roles can be easily uploaded and shared via Ansible Galaxy.
+
+
+=== Directory Structure
+Roles expect files to be in certain directory names. Roles must include at least one of the following directories in role's file structure, however it is perfectly fine to exclude any which are not being used. When in use, each directory must contain a main.yml file, which contains the relevant content.
+
+.Role Directory Structure
+[source,textinfo]
+----
+roles <1>
+└── apache <2>
+    ├── defaults <3>
+    │   └── main.yml
+    ├── files <4>
+    ├── handlers <5>
+    │   └── main.yml
+    ├── meta <6>
+    │   └── main.yml
+    ├── README.md <7>
+    ├── tasks <8>
+    │   └── main.yml
+    ├── templates <9>
+    ├── tests <10>
+    │   ├── inventory
+    │   └── test.yml
+    └── vars <11>
+        └── main.yml
+----
+.Callouts
+<1> roles - Directory which contains all of the roles.
+<2> apache - A role name directory, beneath which role file-tree gets create.
+<3> defaults - default variables for the role.
+<4> files - contains files which can be deployed via this role.
+<5> handlers - contains handlers, which may be used by this role or even anywhere outside this role.
+<6> meta - defines some meta data for this role. 
+<7> README.md - File contains, How-tos for roles.
+<8> tasks - contains the main list of tasks to be executed by the role.
+<9> templates - contains templates which can be deployed via this role.
+<10> tests - contains a sample inventory and a test.yml playbook. can be used for automated testing process.
+<11> vars - other variables for the role.
+
+
+== Lab Requirements 
+In this lab, you will convert monolithic playbook in re-usable roles.You need to make sure that you adhere to a high standard, good practice and consistency for refactor the playbooks. Read the below given requirements and resources and provide solutions.
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+. You need to refactor following playbooks in respective roles as given below-
++
+.Playbooks
+[%autowidth,cols="^.^a,^.^a,a",options="header"]
+|===
+| Playbook | Role | Descritption
+| New Role | firewall | Create a role `firewall`. It will be used for Mysql, Apache, and Haproxy hosts to open necessary ports and services.
+| database.yml | mysqldb | Refactor `database.yml` playbook in `mysqldb` role. Keep all the materials and files related to mysqldb configuration inside in the role.
+| apache.yml | apache | Refactor `apache.yml` playbook in `apache` role. Keep all the materials and files related to apache configuration inside in the role.
+| haproxy.yml | haproxy | Refactor `haproxy.yml` playbook in `haproxy` role. Keep all the materials and files related to haproxy configuration inside in the role.
+
+|===
+
+. There are following static files used in one of the playbooks which you need to convert in Jinja template-
++
+.Static files
+[%autowidth,cols="a,a,a",options="header"]
+|===
+| Static File | Jinja Template | Description
+^.^| haproxy.cfg ^.^| haproxy.cfg.j2 | Add dynamic addition of backend servers in jinja format
+^.^| index.php ^.^| index.php.j2 | Use variable for mysqldb credentials in jinja format.
+|===
+
+
+. Monolithic playbooks are kept in following repository.
+* http://bastion.example.com:5050/devops/three-tier-app-roles.git
+
+. You will be doing all of your work in `refactor-roles` git branch and push it to same remote branch.
+
+
+== Hints for Solutions
+
+=== Git Repository
+. Clone `http://bastion.example.com:5050/devops/three-tier-app-roles.git` repository and switch to new branch `refactor-roles`.  
+
+ifeval::[{show_solution} == true]
++
+.Git Solutions
+****
+. You can clone git repositories as follows-
++
+[source,sh]
+----
+$ cd $HOME
+$ git clone http://bastion.example.com:5050/devops/three-tier-app-roles.git
+----
+
+. You can swtich to `refactor-roles` new branch as follows-
++
+[source,sh]
+----
+$ cd $HOME/three-tier-app-roles
+$ git checkout -b refactor-roles
+$ git status
+----
+****
+endif::[]
+
+=== Review Playbooks and Files
+. List and review all the files and playbooks available in repository.
+
+ifeval::[{show_solution} == true]
++
+.Solutions
+****
+. You can list all files as follows.
++
+[source,sh]
+----
+$ tree .
+----
++
+.Tree output
+[source,textinfo]
+----
+├── ansible.cfg
+├── apache.yml
+├── database.yml
+├── haproxy.cfg
+├── haproxy.yml
+├── images
+│   └── ansible_bg.png
+├── index.php
+├── inventory
+├── main.yml
+├── README.md
+└── userdb.backup
+
+1 directory, 11 files
+----
++
+NOTE: Use cat or vim command line to review all of the above files.
+****
+endif::[]
+
+
+=== Role: Firewall
+. Create new `firewall` role and add firewall related tasks in `tasks/main.yml` file of the role.
+
+ifeval::[{show_solution} == true]
++
+.Role: Firewall Solutions
+****
+. You can run `ansible-galaxy` command to initialize firewall role skeleton as follows.
++
+[source,sh]
+----
+$ ansible-galaxy init roles/firewall
+----
+
+. Add firewall related tasks in main.yml as follows-
++
+[source,sh]
+----
+$ cat > roles/firewall/tasks/main.yml <<EOF
+---
+- name: Install Firewalld
+  dnf:
+    name: firewalld
+    state: latest
+   
+- name: Start firewalld
+  service:
+    name: firewalld
+    enabled: yes
+    state: started
+    
+- name: Open service port
+  when: firewall_services is defined
+  firewalld:
+    service: "{{ __service }}"
+    state: enabled
+    immediate: true
+    permanent: true
+  loop: "{{ firewall_services }}"
+  loop_control:
+    loop_var: __service
+
+- name: Open tcp port
+  when: firewall_tcp_ports is defined
+  firewalld:
+    port: "{{ __tcp_port }}/tcp"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_tcp_ports }}"
+  loop_control:
+    loop_var: __tcp_port
+
+- name: Open tcp port
+  when: firewall_udp_ports is defined
+  firewalld:
+    port: "{{ __udp_port }}/udp"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_udp_ports }}"
+  loop_control:
+    loop_var: __udp_port
+EOF
+----
++
+TIP: You can optionally delete other directories from `roles/firewall/* ` except `tasks` since those are not used.
+****
+endif::[]
+
+=== Role: Mysql-server Role
+. Create `mysqldb` role. Add all necessary tasks, variables, and files after reviewing `database.yml` playbook.
+
+ifeval::[{show_solution} == true]
++
+.Role: Mysql Solutions
+****
+. Initialize mysqldb role.
++
+[source,sh]
+----
+$ ansible-galaxy init roles/mysqldb
+----
+. Add mysql variables to `defaults/main.yml`
++
+[source,sh]
+----
+$ cat > roles/mysqldb/defaults/main.yml <<EOF
+---
+mysql_info:
+  user: devops
+  privilege: "*.*:ALL,GRANT"
+  database: userdb
+  password: redhat
+  backupfile: userdb.backup
+mysql_packages:
+  - mariadb
+  - mariadb-server
+  - python3-PyMySQL
+mysql_services:
+  - mariadb
+EOF
+----
+. Move mysql `userdb.backup` file to `files` directory of the role.
++
+[source,sh]
+----
+$ mv userdb.backup roles/mysqldb/files
+----
+. Add mysql tasks to `tasks/main.yml`.
++
+[source,sh]
+----
+$ cat > roles/mysqldb/tasks/main.yml <<EOF
+---
+- name: Install mysql
+  yum: 
+    name: "{{ __package }}"
+    state: latest
+  loop: "{{ mysql_packages }}"
+  loop_control:
+    loop_var: __package
+
+- name: Start mysql 
+  service:
+    name: "{{ __service }}"
+    enabled: true
+    state: started
+  loop: "{{ mysql_services }}"
+  loop_control:
+    loop_var: __service
+
+- name: Set user's privileges
+  mysql_user:
+    name: "{{ mysql_info.user }}"
+    priv: "{{ mysql_info.privilege }}"
+    append_privs: yes
+    password: "{{ mysql_info.password }}"
+    host: '%'
+
+- name: Copy database backup
+  copy:
+    src: "{{ mysql_info.backupfile }}"
+    dest: /tmp
+
+- name: Restore database from backup
+  mysql_db:
+    name: "{{  mysql_info.database }}"
+    state: import
+    target: "/tmp/{{ mysql_info.backupfile }}"
+EOF
+----
++
+NOTE: You can optionally delete unused directories and files from role.
+****
+endif::[]
+
+=== Role: Apache
+. Create `apache` role. Add all necessary tasks, variables, handlers, templates, and files to the role, convert static file to Jinja template after reviewing `apache.yml` playbook.
+
+ifeval::[{show_solution} == true]
++
+.Role: Apache Solutions
+****
+. Initialize apache role.
++
+[source,sh]
+----
+$ ansible-galaxy init roles/apache
+----
+. Add variables to `defaults/main.yml`.
++
+[source,sh]
+----
+$ cat > roles/apache/defaults/main.yml <<EOF
+---
+apache_packages:
+  - httpd
+  - php
+  - php-mysqlnd
+apache_services:
+  - httpd
+mysql_info:
+  user: devops
+  database: userdb
+  password: redhat
+EOF
+----
+. Move images directory to files dir.
++
+[source,sh]
+----
+$ mv images roles/apache/files
+----
+. Convert index.php in jinja template then move to `templates` dir.
++
+[source,sh]
+----
+$ sed -i 's/$db=.*$/$db=mysqli_connect("{{hostvars[groups['\'database_servers\''][0]]['\'inventory_hostname\'']}}","{{mysql_info.user}}","{{mysql_info.password}}","{{mysql_info.database}}");/' index.php
+
+$ mv index.php roles/apache/templates/index.php.j2
+----
+. Add hanlders to `handlers/main.yml` dir.
++
+[source,sh]
+----
+$ cat > roles/apache/handlers/main.yml <<EOF
+---
+- name: restart_apache
+  service:
+    name: "{{ __service }}"
+    state: restarted
+  loop: "{{ apache_services }}"
+  loop_control:
+    loop_var: __service
+EOF
+----
+. Add taks to `tasks/main.yml` dir.
++
+[source,sh]
+----
+$ cat > roles/apache/tasks/main.yml <<EOF
+---
+- name: Install apache server
+  yum:
+    name: "{{ __package }}"
+    state: latest
+  loop: "{{ apache_packages }}"
+  loop_control:
+    loop_var: __package
+
+- name: Change apache port
+  replace:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: '^Listen.*$'
+    replace: 'Listen 8080'
+
+- name: Copy image directory
+  copy:
+    src: images
+    dest: /var/www/html/
+
+- name: Copy php program template
+  template:
+    src: index.php.j2
+    dest: /var/www/html/index.php
+  notify:
+    - restart_apache
+
+- name: Start apache server
+  service:
+    name: "{{ __service }}"
+    state: restarted
+  loop: "{{ apache_services }}"
+  loop_control:
+    loop_var: __service
+
+- name: enable selinux boolean
+  seboolean:
+    name: "{{ item }}"
+    state: yes
+    persistent: yes
+  loop:
+    - httpd_can_network_connect_db
+    - httpd_can_network_connect
+EOF
+----
++
+NOTE: You can optionally delete unused directories and files from role.
+****
+endif::[]
+
+=== Role: Haproxy
+. Create `haproxy` role. Add all necessary tasks, variables, handlers, templates, and files to the role, convert static file to Jinja template after reviewing `haproxy.yml` playbook.
+
+ifeval::[{show_solution} == true]
++
+.Role: Haproxy Solutions
+****
+. Initialize haproxy role.
++
+[source,sh]
+----
+$ ansible-galaxy init roles/haproxy
+----
+. Add variables to `defaults/main.yml`.
++
+[source,sh]
+----
+$ cat > roles/haproxy/defaults/main.yml <<EOF
+---
+haproxy_packages:
+  - haproxy
+haproxy_services: 
+  - haproxy
+EOF
+----
+. Convert haproxy.cfg in jinja template then move to `templates` dir.
++
+[source,sh]
+----
+$ sed  -i '/^[[:space:]]*$/d;/^ *server.*$/d' haproxy.cfg
+
+$ cat >> haproxy.cfg <<EOF
+    {% for host in groups['backend_servers'] %}
+    server app{{ loop.index }} {{ host }}:8080 cookie app{{ loop.index }} check
+    {% endfor %}
+EOF
+
+$ mv haproxy.cfg roles/haproxy/templates/haproxy.cfg.j2
+----
+. Add hanlders to `handlers/main.yml` dir.
++
+[source,sh]
+----
+$ cat > roles/haproxy/handlers/main.yml <<EOF
+---
+- name: restart_haproxy
+  service:
+    name: "{{ __service }}"
+    state: restarted
+  loop: "{{ haproxy_services }}"
+  loop_control:
+    loop_var: __service
+EOF
+----
+. Add taks to `tasks/main.yml` dir.
++
+[source,sh]
+----
+$ cat > roles/haproxy/tasks/main.yml <<EOF
+---
+- name: Install HAproxy
+  yum: 
+    name: "{{ __package }}"
+    state: latest
+  loop: "{{ haproxy_packages }}"
+  loop_control:
+    loop_var: __package
+
+- name: Copy HAproxy template
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+  notify:
+    - restart_haproxy
+
+- name: Start HAproxy
+  service:
+    name: "{{ __service }}"
+    state: started
+    enabled: yes
+  loop: "{{ haproxy_services }}"
+  loop_control:
+    loop_var: __service
+EOF
+----
++
+NOTE: You can optionally delete unused directories and files from role.
+****
+endif::[]
+
+=== Backup Old Playbooks
+. After creating roles you can take backup of old monolithic playbooks.
+ifeval::[{show_solution} == true]
++
+.Backup Solutions
+****
+. You can move old files in backup directory as follows-
++
+[source,sh]
+----
+$ mkdir backup_old_stuff
+$ mv *.yml backup_old_stuff/
+----
+****
+endif::[]
+
+
+=== Push Content to Remote Repository
+. Push your new Roles from local git repository to remote gitlab repository
+
+ifeval::[{show_solution} == true]
++
+.Push Content Solutions
+****
+. You can push roles to remote repository as follows.
++
+[source,sh]
+----
+$ git add .
+$ git commit -m "Re-useable Ansible Roles"
+$ git push origin refactor-roles
+----
++
+NOTE: Enter `devops` as user and `r3dh4t1!` as password if prompted.
+****
+endif::[]
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

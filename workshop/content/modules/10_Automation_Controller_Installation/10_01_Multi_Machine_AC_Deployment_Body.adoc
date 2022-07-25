@@ -1,0 +1,266 @@
+include::../../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../../tools/00_0_Lab_Provision.adoc[]
+include::../../tools/00_1_Lab_Connect_Environment.adoc[]
+
+//// 
+=== Prepare Course  
+
+.  Run following command to prepare lab environmant.
++
+[source,sh]
+----
+[devops@bastion ~]$ lab prep -c aa-operations
+----
+//// 
+=== Prepare Lab Nodes
+. You need to provision Automation Controller environment which will be used later in this module. Run following command to deploy.
++
+[source,sh]
+----
+$ lab refresh -i satellite
+$ lab deploy -i ac
+----
+
+
+== Red Hat Automation Controller High Availability
+
+.Automation Controller
+Automation Controller (formerly ‘AWX’) is a web-based solution that makes Ansible even more easy to use for IT teams of all kinds. It’s designed to be the hub for all of your automation tasks.
+[.normal]
+Automation Controller allows you to control access to who can access what, even allowing sharing of SSH credentials without someone being able to transfer those credentials. Inventory can be graphically managed or synced with a wide variety of cloud sources. It logs all of your jobs, integrates well with LDAP, and has an amazing browsable REST API. Command line tools are available for easy integration with Jenkins as well. Provisioning callbacks provide great support for autoscaling topologies.
+
+
+=== The goal of the lab
+In this lab, You are asked to install and configure multi node Red Hat^(R)^ Ansible^(R)^Automation Controller.
+
+* Explore and Verify Environment
+* Install Red Hat Automation Controller HA cluster
+* Configure Haproxy for Automation Controller
+* Enable License and Accept Terms
+
+
+=== Requirements and Resources
+Following are the requirements and resources to install and subscribe Red Hat Automation Controller HA cluster.
+
+. You need to install Automation Controller version 2.1.x which can be download from following link- 
+*  https://access.redhat.com/downloads/content/480
+
+. Login with your RHN account to download the setup.
+
+
+. Following are the nodes on which you need to install Red Hat Automation Controller:
+
++
+.Nodes Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Use | Nodes
+.3+^.^|Automation Controller Nodes |control1
+    |control2
+    |control3
+|Automation Controller Database |db
+|===
+
+. Use *r3dh4t1!* for all kind of password used to prepare installation inventory for Red Hat Automation Controller. 
+
+. You can use following Auth details to subscribe Red Hat Automation Controller HA cluster-
+
+
+
+=== Explore and Verify Environment
+. In this section, you need to exploreAutomation Controller nodes and check connectivity. For your info, There are two ansible groups which gets populated when you run `lab deploy -i ac` command and respective hosts gets placed under the groups. Below is list of groups which you can use to explore-
+
+*automationcontrollers
+*dbs
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+. You can explore environment as follows-
++
+[source,sh]
+----
+$ ansible all --list-hosts
+----
++
+.Sample Output
+[source,textinfo]
+----
+  hosts (11):
+    control2.example.com
+    control1.example.com
+    managednode2.example.com
+    execution2.example.com
+    execution1.example.com
+    control3.example.com
+    ah.example.com
+    managednode1.example.com
+    db.example.com
+    satellite.example.com
+    bastion.example.com
+----
+
+. Verify connectivity of Automation Controller nodes
++
+[source,sh]
+----
+$ ansible automationcontrollers,dbs -m ping
+----
++
+.Sample Output
+[source,textinfo]
+----
+control1.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+control3.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+db.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+control2.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+----
+****
+endif::[]
+
+
+=== Install Red Hat Automation Controller HA cluster
+In this section, you need to install and subscribeAutomation Controller as the requirements and resources given.
+
+. Navigate to https://access.redhat.com/downloads/content/480
+. Download Automation Controller setup on your laptop for the Ansible Automation Platform <latest-version> Setup
+. Remote Copy setup from your laptop to bastion.
+. Configure Automation Controller Inventory
+* *automationcontrollers* group host should be used forAutomation Controller nodes.
+* *dbs* group hosts should be used for database.
+* User *r3dh4t1!* for admin and postgres user.
+
+
+. Run Automation Controller Setup
+
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+
+. Navigate to https://access.redhat.com/downloads/content/480
+
+. Click Download Now for the Ansible Automation Platform 2.1.0-1 Setup on your laptop.
+
+. Remote Copy setup tar to bastion host.
+
++
+[source,sh]
+----
+laptop$ scp ansible-automation-platform-setup-2.1.0-1.tar.gz opentlc-id@bastion.$GUID.dynamic.opentlc.com:/tmp/
+----
+
+. Extract the files:
+
++
+[source,sh]
+----
+$ sudo su - devops
+$ ansible localhost -m unarchive -a "src=/tmp/ansible-automation-platform-setup-2.1.0-1.tar.gz dest=/home/devops" 
+----
+
+. You can configure inventory file to run Automation Controller setup as follows-
++
+[source,sh]
+----
+$ cd ansible-automation-platform-setup-2.1.0-1/
+$ cat > inventory <<EOF
+[automationcontroller]
+control1.example.com
+control2.example.com
+control3.example.com
+
+[database]
+db.example.com
+
+[all:vars]
+admin_password='r3dh4t1!'
+ansible_become=true
+pg_host='db.example.com'
+pg_port='5432'
+pg_database='automationcontroller'
+pg_username='ac'
+pg_password='r3dh4t1'
+pg_sslmode='prefer'
+
+# Execution Environment Configuration
+# Credentials for container registry to pull execution environment images from,
+# registry_username and registry_password are required for registry.redhat.io
+registry_url='registry.redhat.io'
+registry_username='<RHN/Developer Account>'
+registry_password='<RHN/Developer Account Password>'
+
+EOF
+----
+
++
+[NOTE]
+Please do not forget to set registry username and password.
+
+. You can execute setup.sh script to install Automation Controller with external database server-
++
+[source,sh]
+----
+$ ./setup.sh
+----
++
+[NOTE]
+====
+* Remember that not all red output lines are `fatal` errors in Ansible.
+** e.g. ansible supports `ignore_errors` at a `task` and `block` level.
+* The setup may take upto 10 minutes to finish.
+* You will see some tasks only execute on a singleAutomation Controller node.
+====
+****
+endif::[]
+
+
+=== Subscribe and Accept Terms
+. You need to subscribe Automation Controller , and accept the end user license agreement as follows
+* Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49210
+* Login as `admin` and use password `r3dh4t1!`.
+* Under Subscription Management, provide Red Hat Subscription credential provided:
++
+.Subscription Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Type | Value
+| Username | admin
+| Password | r3dh4t1!
+|===
+* Accept the End User License Agreement
+* Click *SUBMIT*.
+
+.Congratulation!
+****
+You have successfully completed Lab. Now you can move to next lab.
+****

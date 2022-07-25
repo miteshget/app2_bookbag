@@ -1,0 +1,267 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+Building Inventory
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+
+* Static Inventory
+* Dynamic Inventory
+* In-Memory Inventory
+
+
+
+== Static Inventory
+* Inventory basic formats
+    ** *ini, yaml, & json*
+* Inventory aliases
+* Default groups
+    ** *all, ungrouped*
+* Groups & groups of groups
+    ** *:children*
+
+
+ifdef::showscript[]
+
+Ansible works against multiple managed nodes or “hosts” in your infrastructure at the same time, using a list or group of lists known as inventory. Once your inventory is defined, you use patterns to select the hosts or groups you want Ansible to run against.
+
+The default location for inventory is a file called /etc/ansible/hosts. You can specify a different inventory file at the command line using the -i <path> option. You can also use multiple inventory files at the same time as described in Using multiple inventory sources.
+
+* Inventory basic format:
++
+The inventory file can be in one of many formats, depending on the inventory plugins you have. The most common formats are INI and YAML.
+
+
+* Inventory aliases:
++
+You can also define aliases in your inventory:
++
+e.g. web1 ansible_port=5555 ansible_host=192.0.2.50
+
+* Default groups:
++
+There are two default groups: all and ungrouped. The all group contains every host. The ungrouped group contains all hosts that don’t have another group aside from all. Every host will always belong to at least 2 groups (all and ungrouped or all and some other group). Though all and ungrouped are always present, they can be implicit and not appear in group listings like group_names.
+
+
+* Groups of groups:
++
+You can make groups of groups using the :children suffix in INI or the children: entry in YAML
+
+endif::showscript[]
+
+
+== Static Inventory
+.Organizing variables
+
+* Single Host variables
+    ** Inventory file
+    ** Separate host file - *host_vars/<host_name>*
+
+* Group variables
+    ** Inventory file - *[group:vars]*
+    ** Separate group file - *group_vars/<group_name>*
+
+
+
+ifdef::showscript[]
+
+* Single host:
++
+You can easily assign a variable to a single host using the key=value syntax, then use it later in playbooks.
++
+e.g.
++ 
+ host1 http_port=80 maxRequestsPerChild=808
+ host2 http_port=303 maxRequestsPerChild=909
+
+* Group variables:
++
+If all hosts in a group share a variable value, you can apply that variable to an entire group at once.
++
+e.g.
++
+ [atlanta:vars]
+ ntp_server=ntp.atlanta.example.com
+ proxy=proxy.atlanta.example.com
+
+* Separate host & group file:
++
+Although you can store variables in the main inventory file, storing separate host and group variables files may help you organize your variable values more easily. Host and group variable files must use YAML syntax. 
+endif::showscript[]
+
+
+== Static Inventory
+.How variables are merged?
+* all group 
+* parent group
+* child group
+* host
+
+ifdef::showscript[]
+
+* How variables are merged?
++
+By default variables are merged/flattened to the specific host before a play is run. This keeps Ansible focused on the Host and Task. By default, Ansible overwrites variables including the ones defined for a group and/or host. The order/precedence is (from lowest to highest)
+
+. all group (because it is the ‘parent’ of all other groups)
+. parent group
+. child group
+. host
+
++
+By default Ansible merges groups at the same parent/child level in ASCII order, and the last group loaded overwrites the previous groups. For example, an a_group will be merged with b_group and b_group vars that match will overwrite the ones in a_group.
+
+endif::showscript[]
+
+
+
+== Dynamic Inventory
+
+
+* What is Dynamic Inventory?
+* Use Cases:
+  ** Where IP Addresses are not persistent
+  ** Maintaining inventory file for Large number of hosts
+  ** Host rapid provisioning 
+  ** Autoscaling
+
+
+
+== Dynamic Inventory
+
+* Building Dynamic Inventories:
+** Inventory Plugins (recommended)
+** Inventory Scripts. 
+
+
+== Dynamic Inventory
+
+* Inventory Plugins:
+
+** AWS Cloud: `amazon.aws.aws_ec2`
+** OpenStack Cloud: `openstack.cloud.openstack`
+** Many more
+
+
+== Dynamic Inventory
+
+* Example: *AWS Inventory plugin*
+  ** Pre-requisite:
+    *** boto3, AWS Access Keypair
+  ** Inventory:
++
+[source,yaml]
+----
+---
+plugin: aws_ec2
+aws_access_key: <YOUR-AWS-ACCESS-KEY-HERE>
+aws_secret_key: <YOUR-AWS-SECRET-KEY-HERE>
+keyed_groups:
+  - key: tags
+    prefix: tag
+----
+
+
+== Dynamic Inventory
+* Example: *OpenStack Inventory Plugin*
+  ** Pre-requisite:
+    *** openstacksdk, clouds.yaml
+  ** Inventory:
+    *** Inventory file must be named openstack.yaml or openstack.yml
+
++
+[source,yaml]
+----
+---
+plugin: openstack.cloud.openstack
+expand_hostvars: yes
+fail_on_errors: yes
+all_projects: yes
+----
+
+
+== Dynamic Inventory
+
+.Dynamic Host Groups
+* Default Instance properties
+  ** *Ex.* name, subnet, securitygroups, and architecture etc.
+
+* Custom 
+  ** metadata or tags
+
+
+== Dynamic Inventory
+
+****
+[.text-center]
+Instructor Demo: *Inventory Plugins*
+****
+
+
+
+
+== In-Memory Inventory
+
+* What is In-Memory Inventory?
+* Use cases:
+  ** Building host inventory runtime.
+  ** Adding transient host for one click deployment.
+
+
+== In-Memory Inventory
+.Building In-memory Inventory
+* Use `add_host` Module.
+* Optionally: We can use-
+** groups: to add host group 
+** key=value: to set host variables
+
+
+== In-Memory Inventory
+* Ex: In-Memory Inventory with OpenStack Instances
++
+[source,sh]
+----
+- name: Fetch Instance Info
+  os_server_info:
+    cloud: openstack
+    region_name: regionOne
+  register: r_os_servers
+
+- name: Add host
+  add_host:                             <1>
+    name: "{{ item.public_v4 }}"        <2>
+    group: "{{ item.securitgroups.0 }}" <2>
+    ansible_user: "cloud-user"          <4>
+    foo: bar                            <5>  
+  loop: "{{ r_os_servers.openstack_servers }}"
+----
+
+
+
+== In-Memory Inventory
+
+****
+[.text-center]
+Instructor Demo: *In-Memory Inventory*
+****
+
+
+
+== Summary
+
+* Static Inventory
+* Dynamic Inventory
+* In-Memory Inventory

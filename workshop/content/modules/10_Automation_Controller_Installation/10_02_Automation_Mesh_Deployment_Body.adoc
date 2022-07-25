@@ -1,0 +1,277 @@
+include::../../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../../tools/00_0_Lab_Provision.adoc[]
+include::../../tools/00_1_Lab_Connect_Environment.adoc[]
+
+
+== Red Hat Automation Mesh
+
+.Automation Mesh
+Automation mesh provides a simple, flexible and reliable way to scale automation of large inventories across diverse network topologies, platforms and teams.
+[.normal]
+Scaling automation across different platforms and locations is challenging. How do you ensure your automation executes consistently while still managing your platform centrally? How do you automate endpoints in remote areas with limited connectivity?
+
+The best practice to overcome these challenges is delivering and running automation closer to the devices that need it. This design limits execution interruptions, which lead to inconsistent states, and possible downtime to IT services.
+
+Automation mesh aims to simplify this undertaking and, in conjunction with automation controller, provides a scalable, reliable solution that reduces the operational overhead associated with multi-site deployments. 
+
+=== The goal of the lab
+In this lab, You are asked to install and configure multi node Red Hat^(R)^ Ansible^(R)^Automation Controller and Automation Mesh Nodes.
+
+* Explore and Verify Environment
+* Disable Execution on pre-installed Automation Controller Hybrid Nodes
+* Install Execution Nodes 
+
+
+
+=== Requirements and Resources
+Following are the requirements and resources to install and subscribe Red Hat Automation Controller HA cluster.
+
+. You need to install Automation Controller version 2.1.x which can be download from following link- 
+*  https://access.redhat.com/downloads/content/480
+
+. Login with your RHN account to download the setup.
+
+
+. Following are the nodes on which you need to install Red Hat Automation Controller-
+
++
+.Nodes Details
+[%autowidth,cols="a,a",options="header"]
+|===
+| Use | Nodes
+.3+^.^|Automation Controller Nodes |control1
+    |control2
+    |control3
+
+| Execution Nodes | execution1 and execution2
+    
+|Automation Controller Database |db
+|===
+
+. Use *r3dh4t1!* for all kind of password used to prepare installation inventory for Red Hat Automation Controller. 
+
+. You can use following Auth details to subscribe Red Hat Automation Controller HA cluster-
+
+
+
+=== Explore and Verify Environment
+. In this section, you need to exploreAutomation Controller nodes and check connectivity. For your info, There are two ansible groups which gets populated when you run `lab deploy -i ac` command and respective hosts gets placed under the groups. Below is list of groups which you can use to explore-
+
+* automationcontrollers
+* executionnodes
+* dbs
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+. You can explore environment as follows-
++
+[source,sh]
+----
+$ ansible all --list-hosts
+----
++
+.Sample Output
+[source,textinfo]
+----
+  hosts (11):
+    control2.example.com
+    control1.example.com
+    managednode2.example.com
+    execution2.example.com
+    execution1.example.com
+    control3.example.com
+    ah.example.com
+    managednode1.example.com
+    db.example.com
+    satellite.example.com
+    bastion.example.com
+----
+
+. Verify connectivity of Automation Controller nodes
++
+[source,sh]
+----
+$ ansible automationcontrollers,dbs,executionnodes -m ping
+----
++
+.Sample Output
+[source,textinfo]
+----
+db.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+control2.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+control1.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+control3.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+execution2.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+execution1.example.com | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+
+----
+****
+endif::[]
+
+
+=== Install Red Hat Automation Mesh Execution Nodes
+In this section, you need to install and subscribeAutomation Controller as the requirements and resources given.
+
+. Navigate to https://access.redhat.com/downloads/content/480
+. Download Automation Controller setup on your laptop for the Ansible Automation Platform <latest-version> Setup
+. Remote Copy setup from your laptop to bastion.
+. Configure Automation Controller Inventory
+* *automationcontrollers* group host should be used forAutomation Controller nodes.
+* *dbs* group hosts should be used for database.
+* *executionnodes* group hosts should be used for execution nodes.
+* User *r3dh4t1!* for admin and postgres user.
+
+
+. Topology
+
+.. Standard control plane (3 node) and (2) execution nodes, fully connected
+.. *automationcontrollers* group hosts should only be running control plane and peers should be *executionnodes* group hosts.
+.. *executionnodes* group hosts should be peer to each other. 
+
+
+. Run Automation Controller Setup
+
+
+ifeval::[{show_solution} == true]
+.Solutions
+****
+
+. Navigate to https://access.redhat.com/downloads/content/480
+
+. Click Download Now for the Ansible Automation Platform 2.1.1-1 Setup on your laptop.
+
+. Remote Copy setup tar to bastion host.
+
++
+[source,sh]
+----
+laptop$ scp ansible-automation-platform-setup-2.1.0-1.tar.gz opentlc-id@bastion.$GUID.dynamic.opentlc.com:/tmp/
+----
+
+. Extract the files:
+
++
+[source,sh]
+----
+$ sudo su - devops
+$ ansible localhost -m unarchive -a "src=/tmp/ansible-automation-platform-setup-2.1.0-1.tar.gz dest=/home/devops" 
+----
+
+. You can configure inventory file to run Automation Controller setup as follows-
++
+[source,sh]
+----
+$ cd ansible-automation-platform-setup-2.1.0-1/
+$ cat > inventory <<EOF
+[automationcontroller]
+control1.example.com
+control2.example.com
+control3.example.com
+
+
+[automationcontroller:vars]
+node_type=control
+peers=execution_nodes
+
+[execution_nodes]
+execution1.example.com
+execution2.example.com
+
+
+[database]
+db.example.com
+
+
+[all:vars]
+admin_password='r3dh4t1!'
+ansible_become=true
+pg_host='db.example.com'
+pg_port='5432'
+pg_database='automationcontroller'
+pg_username='ac'
+pg_password='r3dh4t1'
+pg_sslmode='prefer'
+
+# Execution Environment Configuration
+# Credentials for container registry to pull execution environment images from,
+# registry_username and registry_password are required for registry.redhat.io
+registry_url='registry.redhat.io'
+registry_username='<RHN/Developer Account>'
+registry_password='<RHN/Developer Account Password>'
+
+EOF
+----
+
++
+[NOTE]
+Please do not forget to set registry username and password.
+
+. You can execute setup.sh script to install Automation Controller with external database server-
++
+[source,sh]
+----
+$ ./setup.sh
+----
++
+[NOTE]
+====
+* Remember that not all red output lines are `fatal` errors in Ansible.
+** e.g. ansible supports `ignore_errors` at a `task` and `block` level.
+* The setup may take upto 10 minutes to finish.
+* You will see some tasks only execute on a singleAutomation Controller node.
+====
+****
+endif::[]
+
+
+=== Explore the installation
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49210
+. Login as `admin` and use password `r3dh4t1!`.
+. From the left pane click on *Administration* and then select *Instance Groups*.
+. You will see two Instance Groups.
+. Respectively select each of the *Instance Groups* and check the details of control and execution nodes.
+. You should see control(n).example.com nodes `Node Type` will marked as `control`
+. You should see execution(1).example.com nodes `Node Type` will be marked as `execution` nodes.

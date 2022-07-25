@@ -1,0 +1,2 @@
+:show_solution: true
+include::../modules/08_IaC_Automation/08_02_Configure_Cloud_Instances_Body.adoc[]

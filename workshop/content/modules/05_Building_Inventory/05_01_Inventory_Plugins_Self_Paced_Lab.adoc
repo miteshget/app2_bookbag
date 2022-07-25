@@ -1,0 +1,194 @@
+:labname: Inventory Plugins
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+In this lab you will prepare dynamic inventory using inventory plugins to ping bunch of nodes. Following are the highlights.
+
+* Execution Environment Image
+  . ee-osp:1.1.0
+* Inventory Plugin
+  . openstack.cloud.openstack
+* Login username
+  . cloud-user
+* Ssh Private key
+  . $HOME/.ssh/${GUID}key.pem
+
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+=== Prepare Lab Nodes
+
+. You need run following `Lab Manager` command to provision following nodes for which you will write a playbook.
++
+[source,sh]
+----
+$ lab deploy -i bunch_of_hosts
+----
++
+NOTE: You can run `lab destroy -i bunch_of_hosts` in case provisioning fails and then re run above command to re deploy bunch_of_hosts.
+
+. Following lab nodes will be available after lab deployment.
++
+.Environment Nodes
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Inventory Group | Description
+| {counter:cnode:1} | host1.example.com  
+    .2+| *backend_servers* .2+| These nodes will be used for dynamic inventory.
+| {counter:cnode} | host2.example.com
+|===
+
+== Dynamic Inventory Plugins
+Ansible requires an inventory to execute playbook tasks. Inventory can be prepared manually by creating static file and adding hosts. Or, It can be dynamic inventory plugins which pulls inventory information from other systems like satellite, cmddb, and etc.
+
+
+=== List Instances
+. To get any information from OpenStack cloud you must have cloud credentials. Cloud credentials are already stored in `/etc/openstack/clouds.yaml` file in your `bastion` node. So Let's try to get list of servers/vms/instances from OpenStack cloud using `openstack` command line tool as follows.
++
+[source,sh]
+----
+$ openstack server list -c Name -c Status -c Networks  --os-cloud=${GUID}-project
+----
++
+.Servers List
+image:server_list.png[]
+
+
+=== Build Inventory
+You have seen bunch of servers in the output of `openstack` command. Now we need to build dynamic inventory using inventory plugins so that we can run automation playbooks on them.
+
+. Let's create dynamic inventory as follows.
++
+[source,sh]
+----
+$ mkdir $HOME/dynamic-inventory
+$ cd $HOME/dynamic-inventory
+$ cat > openstack.yaml <<EOF
+---
+plugin: openstack.cloud.openstack
+expand_hostvars: yes
+groups:
+  osp_instances: "'hosts' in openstack.metadata.AnsibleGroup" <1>
+compose:
+  ansible_ssh_host: openstack.private_v4 <2>
+EOF
+----
+.Callouts
+<1> Custom group osp_instances.
+<2> Setting variable with host private ip address.
+
+=== Configure Settings
+. Let's setup ansible.cfg in the project directory-
++
+[source,sh]
+----
+$ cat > ansible.cfg <<EOF
+[defaults]
+inventory = openstack.yaml
+EOF
+----
+
+. Let's do Ansible Navigator settings, While creating settings file you also need to make sure `/etc/openstack/clouds.yaml` file mount parmeters are set. As follows.
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    config: ansible.cfg
+    playbook: playbook.yml
+  app: run
+  execution-environment:
+    image: ee-osp:1.1.0
+    pull-policy: missing
+    volume-mounts:
+      - src: "/etc/openstack/clouds.yaml"
+        dest: "/etc/openstack/clouds.yaml"
+        label: "Z"
+  mode: stdout
+  playbook-artifact:
+    enable: False
+EOF
+----
+
+=== Verify Inventory
+. You can verify dynamic inventory entries as follows-
++
+[source,sh]
+----
+$ ansible-navigator inventory -i openstack.yaml -m interactive
+----
++
+.Steps to list hosts
+====
+. Type the *1* to Browse hosts.
+. You will get list of openstack hosts.
+. To exit, keep on pressing <ESC> key until you are back to shell prompt.
+====
+
+
+=== Run Playbook
+. Let's create a simple playbook to test dynamic-inventory as follows -
++
+[source,sh]
+----
+$ cat > playbook.yml <<EOF
+---
+- name: Verify OpenStack Instances
+  hosts: osp_instances
+  tasks:
+    - name: Verify connectivity
+      ping:
+      register: output
+    - debug:
+        msg: "{{ output }}"
+EOF
+----
+
+. You can run playbook against dynamic inventory as follows-
++
+[source,sh]
+----
+$ ansible-navigator
+----
+
++
+.Playbook output
+image:playbook_output.png[]
+
+
+== Cleanup 
+You must need to destroy `bunch_of_hosts` nodes, before you move to other labs. Or, Reset in case, you want to redo the lab.
+
+.Destroy Lab Nodes
+. If you want to move to next lab then please run following `Lab Manager` command to destroy lab nodes.
++
+[source,sh]
+----
+$ lab destroy -i bunch_of_hosts
+----
+
+.Reset Lab Nodes
+. You can reset lab nodes if you want to re do the lab.
++
+[source,sh]
+----
+$ lab reset -i bunch_of_hosts
+----
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

@@ -1,0 +1,3 @@
+:labname: Tower HA
+:show_solution: false
+include::../modules/11_Automation_Hub/11_01_Platform_AH_Deployment_Body.adoc[]

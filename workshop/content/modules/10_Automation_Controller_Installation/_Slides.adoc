@@ -1,0 +1,302 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+Automation Controller - Installation
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+
+* System Requirements
+* Installer
+* Supported Installation Scenarios
+* Standalone automation controller with a database on the same node
+* Multi-machine cluster installation with an external managed database
+* Installation Script
+* Import a subscription
+* Deprovisioning Nodes
+* Summary
+
+
+== System Requirements
+
+* Base System
++
+[%autowidth,cols="^.^,^.^a,^.^a",options="header"]
+|===
+|  Type  | Required | Notes
+| OS | RHEL 8.4 or later 64-bit | -
+| Ansible | version 2.11 required | If Ansible is not already present on the system, 
+                                     the setup playbook will install ansible-core 2.12.
+|===
+
+* Computing resources
++
+[%autowidth,cols="^.^,^.^a,^.^a",options="header"]
+|===
+| Nodes | Required | Notes
+| RAM  | 16 Gb | -
+| CPUs | 4 | Processes events and runs cluster jobs 
+               including project updates and cleanup jobs. 
+                 Increasing CPU and memory can help with job event processing.
+|===
+
+
+
+ifdef::showscript[]
+* Instances in the control plane run persistent automation controller services such as the the web server and task dispatcher, in addition to project updates, and management jobs.
+
+* Control nodes run project and inventory updates and system jobs, but not regular jobs. Execution capabilities are disabled on these nodes.
+
+endif::showscript[]
+
+
+== Installer
+
+* Installing with internet access
+** Red Hat Ansible Automation Platform installer
+
+* Installing without internet access
+** Red Hat Ansible Automation Platform *Bundle* installer
+
+ifdef::showscript[]
+
+* Choose the Red Hat Ansible Automation Platform installer if your Red Hat Enterprise Linux environment is connected to the internet. Installing with internet access will retrieve the latest required repositories, packages, and dependencies.
+
+* Use the Red Hat Ansible Automation Platform Bundle installer if you are unable to access the internet, or would prefer not to install separate components and dependencies from online repositories. Access to Red Hat Enterprise Linux repositories is still needed. All other dependencies are included in the tar archive.
+
+endif::showscript[]
+
+
+== Supported Installation Scenarios
+
+* Standalone automation controller 
+   ** With a database on the same node
+   ** Or a non-installer managed database
+* Standalone automation controller with an external managed database
+* Mutli-machine cluster installation with an external managed database
+
+
+ifdef::showscript[]
+
+* Standalone automation controller with a database on the same node, or a non-installer managed database
+** This scenario includes installation of automation controller, including the web frontend, REST API backend, and database on a single machine. It installs PostgreSQL, and configures the automation controller to use that as its database. This is considered the standard automation controller installation scenario.
+
+*  Standalone automation controller with an external managed database
+** This scenario includes installation of the automation controller server on a single machine and configures communication with a remote PostgreSQL instance as its database. This remote PostgreSQL can be a server you manage, or can be provided by a cloud service such as Amazon RDS.
+
+* Mutli-machine cluster installation with an external managed database
+** This scenario includes installation of multiple automation controller nodes and an automation hub instance and configures communication with a remote PostgreSQL instance as its database. This remote PostgreSQL can be a server you manage, or can be provided by a cloud service such as Amazon RDS. In this scenario, all automation controller are active and can execute jobs, and any node can receive HTTP requests.
+
+
+
+endif::showscript[]
+
+
+
+
+== Standalone automation controller with a database on the same node
+
+* Ex: Inventory File
++
+[source,ini]
+----
+[automationcontroller]        <1>
+127.0.0.1 ansible_connection=local
+
+[database]                    <2>
+
+[all:vars]                    <3>
+admin_password='<password>'   <3>
+
+pg_host=''
+pg_port=''
+
+pg_database='awx'
+pg_username='awx'
+pg_password='<password>'
+
+registry_url='registry.redhat.io'
+registry_username='<registry username>'
+registry_password='<registry password>'
+
+----
+
+
+ifdef::showscript[]
+
+1. `automationcontroller` group for lisitng nodes to install standalone hybrid node.
+2. `database` group is empty as we are doing all in one installation
+3. `all:vars` all the variables realted to automation controller, database can be set under this section.
+
+* Do not use special characters for pg_password. It may cause the setup to fail.
+* Enter your Red Hat Registry Service Account credentials in registry_username and registry_password to link to the Red Hat container registry.
+
+endif::showscript[]
+
+== Multi-machine cluster installation with an external managed database
+
+* Ex: Inventory File
++
+[source,ini]
+----
+[automationcontroller]        <1>
+ac1.example.com
+ac2.example.com
+ac3.example.com
+
+[database]
+acdb.example.com              <2>
+
+[all:vars]
+ansible_become=true
+admin_password='<password>'   <3>
+
+pg_host='acdb.example.com'    <4>
+pg_port='5432'                <5>
+
+pg_database='tower'
+pg_username='tower'
+pg_password='<password>'
+
+registry_url='registry.redhat.io'
+registry_username='<registry username>'
+registry_password='<registry password>'
+
+----
+
+
+ifdef::showscript[]
+
+** External databases
+
+** Automation controller will not configure 
+     replication or failover for the database
+
+** The database server should be on the same network 
+
+** Container registry service is required to install the Ansible Automation Platform.
+
+** Replace localhost with the hostname or IP address of all instances
+
+* Using external databases: ensure the database sections of your inventory file are properly setup.
+
+* Automation controller will not configure replication or failover for the database that it uses. automation controller should work with any replication you have.
+
+* The database server should be on the same network or in the same data center as the automation controller server for performance reasons.
+
+* A container registry service is required to install the Ansible Automation Platform. Access to a container registry enables you to load automation execution environments onto the Ansible Automation Platform, giving you a consistent and containerized environment for executing Ansible playbooks and roles.
+
+* If you are creating a clustered setup, you must replace localhost with the hostname or IP address of all instances. All nodes/instances must be able to reach any others using this hostname or address. In other words, you cannot use the localhost ansible_connection=local on one of the nodes AND all of the nodes should use the same format for the host names.
+
+
+1: External databse node
+2: `pg_host` for setting up external database node name
+3: `pg_port` for setting up port on AC will talk to atabse node
+
+endif::showscript[]
+
+
+== Installation Script
+
+* *setup.sh*
+   ** `-h` – HELP
+   ** `-i` <INVENTORY_FILE_NAME> 
+   ** `-e` EXTRA_VARS 
+
++
+.Example
+[source,sh]
+----
+$ ./setup.sh -i inventory
+----
+
+ifdef::showscript[]
+
+Transcript:
+* The setup playbook script uses the inventory file and is invoked as ./setup.sh from the path where you unpacked the Tower installer tarball.
+
+* The setup script takes the following arguments:
+   ** `-h` – Show this help message and exit
+   ** `-i` <INVENTORY_FILE_NAME> – Path to Ansible inventory file (default: inventory)
+   ** `-e` EXTRA_VARS – Set additional Ansible variables as key=value or YAML/JSON (i.e. -e bundle_install=false forces an online installation)
+
+endif::showscript[]
+:scrollbar:
+:data-uri:
+
+
+== Import a subscription
+
+* Automation Controller Subscription
+
+* Disconnected environments with Satellite
+
+* Disconnected environments without Satellite
+
+ifdef::showscript[]
+
+Transcript:
+
+
+* Automation Controller uses available subscriptions or a subscription manifest to authorize the use of Tower. 
+
+* To obtain your Automation Controller subscription, you can either:
+
+   ** Provide your Red Hat or Satellite username and password on the license page.
+
+   ** Obtain a subscriptions manifest from your Subscription Allocations page on the customer portal. 
+
+* *Disconnected environments with Satellite* will be able to use the login flow on vm-based installations if they have configured subscription manager on the AC instance to connect to their Satellite instance.
+
+* *Disconnected environments without Satellite* include downloading a manifest from access.redhat.com in a connected environment, then uploading it to the disconnected AC instance, or connecting to the Internet through a proxy server.
+
+IMPORTANT: If it is a subscription manifest, Automation Controller will use the first valid subscription included in your manifest file. This is why it is important to only include the subscription you want applied to the Tower installation.
+endif::showscript[]
+
+== Deprovisioning Nodes
+
+* Deprovision nodes from your automation mesh using the installer.
++
+[source,sh]
+----
+[automationcontroller]
+126-addr.tatu.home ansible_host=192.168.111.126  node_type=control
+115-addr.tatu.home ansible_host=192.168.111.115  node_type=hybrid node_state=deprovision
+
+[execution_nodes]
+108-addr.tatu.home ansible_host=192.168.111.108 receptor_listener_port=29182 node_state=deprovision
+----
+
+
+ifdef::showscript[]
+You can deprovision nodes from your automation mesh using the Ansible Automation Platform installer. Running the installer will remove all configuration files and logs attached to the node.
+
+NOTE
+You can deprovision any of your inventory’s hosts except for the first host specified in the ‘[automationcontroller]`group.
+
+* Append `node_state=deprovision` to nodes in the installer file you want to deprovision.
+
+endif::showscript[]
+
+== Summary
+* System Requirements
+* Installer
+* Supported Installation Scenarios
+* Standalone automation controller with a database on the same node
+* Multi-machine cluster installation with an external managed database
+* Installation Script
+* Import a subscription
+* Deprovisioning Nodes
+* Summary

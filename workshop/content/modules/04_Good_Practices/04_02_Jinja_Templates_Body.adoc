@@ -1,0 +1,404 @@
+:labname: Jinja Template
+
+include::../../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+This lab gives you better understanding of Jinja template use case. In this lab you will be converting a provided static Openstack Orchestration Heat template into dynamic Heat template using Jinja syntax. We have also provided Jinja and Jinja template designer tips for refreshing your Jinja knowledge. 
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+=== About Jinja
+.Jinja Engine
+Jinja is a fast, expressive, extensible templating engine. Special placeholders in the template allow writing code similar to Python syntax. Then the template is passed data to render the final document.
+
+.Jinja Template
+A Jinja template is simply a text file. Jinja can generate any text-based format (HTML, XML, CSV, etc.). A template contains variables and/or expressions, which get replaced with values when a template is rendered; and tags, which control the logic of the template. The template syntax is heavily inspired by Django and Python. A Jinja template doesn’t need to have a specific extension: .html, .xml, .j2, or any other extension is just fine.
+
+.Why is it called Jinja?
+The name Jinja was chosen because it’s the name of a Japanese temple and template share a similar pronunciation. It is not named after the city in Uganda.
+
+
+=== Jinja Template Designer Tips 
+This section describes the syntax and semantics of the template engine and will be most useful as reference to those creating Jinja templates.
+
+
+. There are a few kinds of delimiters. Following are the default Jinja delimiters.
++
+.Default Jinja Delimiters
+[source,textinfo]
+----
+{% ... %} for Statements
+{{ ... }} for Expressions to print to the template output
+{# ... #} for Comments not included in the template output
+#  ... ## for Line Statements
+----
+. Following is the way to substitute variables in jinja.
++
+.Variables
+[source,textinfo]
+----
+{{ foo }}
+{{ foo['bar'] }}
+----
+. You can also assign values to variables in template as follows -
++
+.Assignments
+[source,textinfo]
+----
+{% users = ['bob', 'devops' %}
+----
+. Variables can be modified by filters. Filters are separated from the variable by a pipe symbol (|) and may have optional arguments in parentheses. Multiple filters can be chained.
++
+.Filters
+[source,textinfo]
+----
+{{ name|striptags|title }}
+----
+
+. Tests can be used to test a variable against a common expression.
++
+.Tests
+[source,textinfo]
+----
+{% if True %}
+  {{ inventory_hostname }}
+{% endif %}
+----
+
+. To comment-out part of a line in a template.
++
+.Comments
+[source,textinfo]
+----
+{# note: commented-out template because we no longer use this
+    {% for user in users %}
+        ...
+    {% endfor %}
+#}
+----
+
+. It is sometimes necessary – to have Jinja ignore parts it would otherwise handle as variables.
++
+.Escaping
+[source,textinfo]
+----
+{{ '{{' }} <1>
+
+{% raw %} <2>
+    {% if True %}
+    {{ inventory_hostname }}
+    {% endif %}
+{% endraw %}
+----
+.Callouts
+<1> *'{{'* - The easiest way to output a literal variable delimiter.
+<2> *{% raw %}* - For bigger sections, you make block raw.
+
+. Loop over each item in a sequence.
++
+.For Loop
+[source,textinfo]
+----
+{% for user in users %}
+  {{ user }}
+{% endfor %}
+----
+
+== Create dynamic Heat Template (HOT)
+In this lab, You need to convert existing static OpenStack Heat orchestration template (Often called HOT) into dynamic Heat template using Jinja syntax. You been provided static Heat template, YAML based variables file and playbook. Playbook is for testing your dynamic Heat template.
+
+=== Resources
+
+. Following git repository have all the files you needed for the lab-
++
+.Git Repository
+[%autowidth,cols="a,a",options="header"]
+|===
+| Type | Descritption
+| Git URL | http://bastion.example.com:5050/devops/jinja-heat-template.git
+|===
+
+. Below are the details of files which you can find in git repository-
++
+.Resource files
+[%autowidth,cols="a,a,a",options="header"]
+|===
+| Type | Name | Descritption
+^.^| HOT ^.^| heat_template.yml | Static OpenStack heat orchestration template, which you need to convert.
+^.^| Variable ^.^| instance_vars.yml | YAML based varialbes file 
+^.^| Playbook ^.^| playbook.yml | Playbook to test your dynamic OpenStack heat orchestration template.
+|===
+
+
+== Tips for solutions
+=== Review resource files
+. You can start from cloning git repository.
+
+ifeval::[{show_solution} == true]
++
+.Git Solutions
+****
+[source,sh]
+----
+$ cd $HOME
+$ git clone http://bastion.example.com:5050/devops/jinja-heat-template.git
+----
+****
+endif::[]
+
+. Review static `heat_template.yml` OpenStack Heat Orchestration Template. Current HOT is desinged to deploy only one OpenStack instance. 
+
+ifeval::[{show_solution} == true]
++
+.HOT Review Solutions
+****
+[source,sh]
+----
+$ cd $HOME/jinja-heat-template
+$ cat heat_template.yml
+----
+.Sample Output
+[source,textinfo]
+----
+---
+heat_template_version: 2018-03-02
+description: Top level HOT for creating instances.
+
+resources:
+  server_server1: <1>
+    type: OS::Nova::Server
+    properties:
+      name: server <2>
+      flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor <3>
+      key_name: f762-keypair <4>
+      config_drive: True
+      block_device_mapping_v2:
+        - image: rhel-8.3 <5>
+          delete_on_termination: true
+          volume_size: 50
+          boot_index: 0
+      user_data_format: RAW
+      user_data: |
+        #cloud-config
+        ssh_authorized_keys: "ssh-rsa AAAAB3NzaC1yc2 --<Output Omitted>--- <6>
+      networks:
+        - network: f762-dev-network <7>
+      metadata:
+        'AnsibleGroup': "apps" <8>
+      security_groups:
+        - f762-DefaultSG <9>
+        - f762-HostSG <10>
+----
+****
+endif::[]
+
+. Review `instance_vars.yml` YAML based variables file which you will be using in jinja syntax while converting HOT.
+
+ifeval::[{show_solution} == true]
++
+.Variables Review Solutions
+****
+[source,sh]
+----
+$ cat instance_vars.yml
+----
+
+.Sample Output
+[source,textinfo]
+----
+#replace guid value with your environment guid
+guid: f762 <1>
+ssh_public_key_path: "~/.ssh/{{ guid }}key.pub" <2>
+all_ssh_authorized_keys: "{{ lookup('file', ssh_public_key_path)}}" <3>
+key_name: "{{ guid }}-keypair" <4>
+instances: <5>
+  - name: node1 <6>
+    image: rhel-8.3 <7>
+    flavor: <8>
+      osp: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor
+    network: "{{ guid }}-dev-network" <9>
+    tags: <10>
+      - key: "AnsibleGroup" 
+        value: "apps"
+    security_groups: <11>
+      - "{{ guid }}-DefaultSG"
+      - "{{ guid }}-HostSG"
+
+  - name: node2
+    image: rhel-8.3
+    flavor:
+      osp: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor
+    network: "{{ guid }}-dev-network"
+    tags:
+      - key: "AnsibleGroup"
+        value: "apps"
+    security_groups:
+      - "{{ guid }}-DefaultSG"
+      - "{{ guid }}-HostSG"
+----
+****
+endif::[]
+
+. Review `playbook.yml` playbook. The playbook has task to convert Jinja to HOT and verify the generated HOT.
+
+ifeval::[{show_solution} == true]
++
+.Playbook Review Solutions
+****
+[source,sh]
+----
+$ cat playbook.yml
+----
+
+.Sample Output
+[source,textinfo]
+----
+- name: OpenStack Jinja Heat Orchestration Template
+  hosts: localhost <1>
+  vars_files:
+   - instance_vars.yml <2>
+  tasks:
+    - name: Generate HOT template
+      template: 
+        src: heat_template.yml.j2 <3>
+        dest: /tmp/heat_template.yml <4>
+
+    - name: Create Openstack simple Heat stack (--dry-run)
+      command: >- <5>
+        openstack stack create --dry-run -vvv
+        -t /tmp/heat_template.yml
+        -f json base-stack-{{ 99999 | random }}
+        --os-cloud {{ guid }}-project
+----
+****
+endif::[]
+
+=== Convert & Verify
+. Replace guid value as per your environment GUID variable in `instance_vars.yml` file.
+
+ifeval::[{show_solution} == true]
++
+.Replace guid Solutions
+****
+[source,sh]
+----
+$ ansible localhost -m lineinfile -a "path=instance_vars.yml regexp='^guid:' line='guid: ${GUID}' state=present"
+----
+****
+endif::[]
+
+. Now you need create `heat_template.yml.j2` Jinja formated OpenStack Heat Orchestration Template based on static  `heat_template.yml` HOT. You must need to use variables defined in `instance_vars.yml` file while converting. You may also take help for Jinja syntax from above `Jinja template Designer Tips` section.
+
+ifeval::[{show_solution} == true]
++
+.Jinja Template Solutions
+****
+. You can simply switch to `solutions` branch of your cloned git repository which has already haet_template.yml.j2 dynamic HOT.
++
+[source,sh]
+----
+$ git checkout solutions
+$ ls -l
+----
++
+.Sample Output
+[source,textinfo]
+----
+total 16
+-rw-r--r--. 1 devops users  767 Jul 22 00:18 heat_template.yml
+-rw-r--r--. 1 devops users 1050 Jul 22 01:10 heat_template.yml.j2 <1>
+-rw-r--r--. 1 devops users  771 Jul 22 00:18 instance_vars.yml
+-rw-r--r--. 1 devops users  486 Jul 22 00:18 playbook.yml
+----
+.Callouts
+<1> heat_template.yml.j2 is jinja based HOT. 
+
+. You can review solution `heat_template.yml.j2` HOT.
++
+[source,sh]
+----
+$ cat heat_template.yml.j2
+----
++
+.Sample Output
+[source,textinfo]
+----
+#jinja2: lstrip_blocks: "True"
+---
+heat_template_version: 2018-03-02
+description: Top level HOT for creating instances. This template
+
+resources:
+{% for instance in instances %}
+  ########### {{ instance.name }} ###########
+  server_{{ instance.name }}:
+    type: OS::Nova::Server
+    properties:
+      name: {{ instance.name }}
+      flavor: {{ instance.flavor.osp }}
+      key_name: {{ guid }}-keypair
+      config_drive: True
+      block_device_mapping_v2:
+        - image: {{ instance.image }}
+          delete_on_termination: true
+          volume_size: 50
+          boot_index: 0
+      user_data_format: RAW
+      user_data: |
+        #cloud-config
+        ssh_authorized_keys: {{ all_ssh_authorized_keys | to_json }}
+      networks:
+        - network: {{ instance.network }}
+      metadata:
+      {% for tag in instance.tags %}
+        '{{ tag.key }}': {{ tag.value | to_json }}
+      {% endfor %}
+      security_groups:
+      {% for security_group in instance.security_groups %}
+        - {{ security_group }}
+      {% endfor %}
+{% endfor %}
+----
+****
+endif::[]
+
+
+. Once you have converted OpenStack Heat Orchestration Template, you can verify your work by just running `playbook.yml` playbook as follows.
++
+TIP: We have used `openstack stack create --dry-run` command in the playbook to verify stack in dry mode this is the reason why we run the playbook in disabled execution environment.  
++
+[source,sh]
+----
+$ ansible-navigator run -m stdout playbook.yml --ee false
+----
++
+NOTE: If you see any error in the replay which means your Heat template is not ready yet so fix your template and re run playbook.
+
++
+.Success Output
+[source,textinfo]
+----
+---<Output Omitted>---
+PLAY RECAP *********************************************************************
+localhost  : ok=3 changed=1 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0   
+----
+
+
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

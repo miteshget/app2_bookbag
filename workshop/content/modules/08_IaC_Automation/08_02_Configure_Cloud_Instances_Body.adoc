@@ -1,0 +1,302 @@
+:labname: Configure Cloud Instances
+
+include::../../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+// :show_solution: true
+
+include::../../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+In this lab, You need to create a playbook to configure OpenStack instances which you have provisioned in previous lab.
+
+
+== Lab Requirements 
+In this lab, you will use in-memory inventory to configure subscription on the OpenStack cloud instances. As per requirements and resources given below.
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+
+. Following are the satellite details-
++
+.Subscription Details
+[%autowidth,cols="^.^,a,a",options="header"]
+|===
+| Sr No | Type | Value
+| {counter:res:1 | Server | satellite.example.com
+| {counter:res} | Katello CA Certificate | http://satellite.example.com/pub/katello-ca-consumer-latest.noarch.rpm
+| {counter:res} | Activation Key | gpte-labs-rhel8
+| {counter:res} | Organization | prod
+|===
+
+. You will use following Execution Environment which you have build in earlier labs and Collection.
++
+.Execution Environment
+[%autowidth,cols="^.^,^.^a,^.^a",options="header"]
+|===
+| Sr No | Type | Name 
+| {counter:ee:1} | Execution Environment Image | ee-osp:1.2.0 
+| {counter:ee:} .2+| Collections | openstack.cloud
+| {counter:ee:} | community.general
+|===
+
+. You will write `config.yml` playbook in `$HOME/OpenStack-instances` project directory to configure following nodes, which you have provisioned in previous lab.
++
+.Environment Nodes
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Inventory Group | Description
+| {counter:cnode:1} | server1.example.com  
+    .2+| *osp_instances* .2+| These nodes need to be configured.
+| {counter:cnode} | server2.example.com
+|===
+
+
+== Hints for Solutions
+
+=== Create Inventory
+. Create `in-memory-inventory.yml` inventory playbook in `$HOME/OpenStack-instances` project directory.
+ifeval::[{show_solution} == true]
++
+.In-memory Inventory Solutions
+****
+. You can create in-memory inventory playbook as follows-
++
+[source,sh]
+----
+$ cd $HOME/OpenStack-instances
+$ cat > in-memory-inventory.yml <<EOF
+---
+- name: In-Memory Inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    guid: "{{ lookup('env','GUID') }}"
+    home: "{{ lookup('env','HOME') }}"
+    internal_domain: "{{ lookup('env','INTERNAL_DOMAIN') }}"
+  tasks:
+    - name: Collection instance info
+      openstack.cloud.server_info:
+        cloud: "{{ guid }}-project"
+      register: instances
+
+    - name: Build In-Memory inventory
+      ansible.builtin.add_host:
+        host: "{{ instance.name }}.{{ internal_domain }}"
+        group: "{{ instance.metadata.AnsibleGroup }}"
+        ansible_host: "{{ instance.private_v4 }}"
+        ssh_private_key_file: "{{ home }}/.ssh/{{ guid }}key.pem"
+      when: instance.metadata.AnsibleGroup == "osp_instances"
+      loop: "{{ instances.openstack_servers }}"
+      loop_control:
+        loop_var: instance
+
+- name: Check Instances
+  hosts: osp_instances
+  gather_facts: false
+  tasks:
+    - name: wait for host to be available
+      wait_for_connection:
+        delay: 30
+        timeout: 300
+        connect_timeout: 10
+      register: rwait
+EOF
+----
+****
+endif::[]
+
+=== Configuration Playbook
+. Crate `config.yml` configuration playbook.
+ifeval::[{show_solution} == true]
++
+.Playbook Solutions
+****
+. You can create playbook to configure OpenStack Instances as follows-
++
+[source,sh]
+----
+$ cat > config.yml <<EOF
+- name: Play to automate process
+  hosts: osp_instances
+  become: yes
+  vars:
+    satellite_ca_cert_url: http://satellite.example.com/pub/katello-ca-consumer-latest.noarch.rpm
+    satellite_activationkey: gpte-labs-rhel8
+    satellite_org: prod
+
+  tasks:
+    - name: install katello-ca-consumer package
+      ansible.builtin.dnf:
+        name: "{{ satellite_ca_cert_url }}"
+        state: present
+        disable_gpg_check: true
+
+    - name: register system and attach subs
+      community.general.redhat_subscription:
+        state: present
+        activationkey: "{{ satellite_activationkey }}"
+        org_id: "{{ satellite_org }}"
+EOF
+----
+****
+endif::[]
+
+=== Create Main Playbook
+. Create `main.yml` playbook and import `in-momery-inventory.yml` and `config.yml` playbooks. You can also import previously create `provision.yml` playbook which will be a complete solution. So after import `main.yml` playbook will provision and configure the OpenStack instances on single execution.
+
+ifeval::[{show_solution} == true]
++
+.Main Playbook Solutions
+****
+. You can create main.yml playbook and import playbooks as follows-
++
+[source,sh]
+----
+$ cat > main.yml <<EOF
+---
+- import_playbook: provision.yml
+- import_playbook: in-memory-inventory.yml
+- import_playbook: config.yml
+EOF
+----
+****
+endif::[]
+
+
+=== Configure Settings
+. Modify `ansible-navigator.yaml` settings file so that it runs main.yml on execution.
+ifeval::[{show_solution} == true]
++
+.Settings Solutions
+****
+. You can replace following settings in file as follows-
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    playbook: main.yml <1>
+  app: run
+  execution-environment:
+    image: ee-osp:1.2.0
+    pull-policy: missing
+    volume-mounts:
+      - src: "/etc/openstack/clouds.yaml"
+        dest: "/etc/openstack/clouds.yaml"
+        label: "Z"
+    environment-variables:
+      pass:
+        - GUID
+        - HOME <2>
+        - INTERNAL_DOMAIN <2>
+  mode: stdout
+  logging:
+    append: False
+    level: critical
+    file: /tmp/OpenStack-instances/ansible-navigator.log
+  playbook-artifact:
+    enable: True
+    replay: /tmp/OpenStack-instances/artifact.json
+    save-as: /tmp/OpenStack-instances/artifact.json
+EOF
+----
+.Callouts
+<1> Change playbook name to main.yml
+<2> Add HOME and INTERNAL_DOMAIN environment variable.
+****
+endif::[]
+
+
+=== Configure Instances
+. Execute playbook to provision and configure instances-
+ifeval::[{show_solution} == true]
++
+.One command deployment Solutions
+****
+. You can run playbook as follows-
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Playbook Output
+image:configure_output.png[]
+
+****
+endif::[]
+
+=== Verify Instances
+. SSH to one of the node and try to install package.
+ifeval::[{show_solution} == true]
++
+.Verification Solutions
+****
+. You can verify instances as follows-
++
+[source,sh]
+----
+$ ssh <IP of server1>
+server1$ sudo dnf install -y vim
+----
++
+NOTE: If vim package installation fails which means you have missed something in the previous steps and re do them.
+
+****
+endif::[]
+
+
+== Cleanup 
+You must need to destroy all of the instances which you provisioned in the lab before you move to other labs. Or In case, you want to redo the lab. 
+
+=== Destroy Instances
+. You can create following `destroy.yml` playbook to destroy instances.
++
+[source,sh]
+----
+$ cd $HOME/OpenStack-instances
+$ cat > destroy.yml <<EOF
+---
+- name: Delete OpenStack Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    guid: "{{ lookup('env','GUID') }}"
+  tasks:
+    - name: Include Instance variables
+      include_vars: instances_vars.yml
+
+    - name: Delete Instance
+      openstack.cloud.server:
+        cloud: "{{ guid }}-project" 
+        name: "{{ instance.name }}"
+        delete_fip: yes
+        state: absent
+      loop: "{{ instances }}"
+      loop_control:
+        loop_var: instance
+EOF
+----
+
+. You can run destory.yml playbook as follows-
++
+[source,sh]
+----
+$ ansible-navigator run destroy.yml
+----
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

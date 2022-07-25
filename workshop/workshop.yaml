@@ -2,8 +2,4 @@
 name: Bookbag Template
 modules:
   activate:
-    - overview
-    - prepare-environment
-    - exercises
-    - cleanup
-    - solving-resetting
+    - modules/01_Course_introduction/01_01_Prepare_Class_Environment_Self_Paced_Lab

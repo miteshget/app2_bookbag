@@ -1,0 +1,3 @@
+:labname: Tower HA
+:show_solution: false
+include::../modules/10_Automation_Controller_Installation/10_01_Multi_Machine_AC_Deployment_Body.adoc[]

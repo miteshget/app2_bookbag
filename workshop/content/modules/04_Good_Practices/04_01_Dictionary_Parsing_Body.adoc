@@ -1,0 +1,255 @@
+:labname: Dictionary Parsing
+
+include::../../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+== Overview
+In this lab you have been provided a playbook which queries OpenStack cloud and collects instances detailed information in `JSON` dictionary format. You need to filter down the collected dictionary as per requirements provided below. Then convert filtered dictionary in `YAML` format and store it in `$HOME/dictinary-parsing/instances.yml` file.
+
+* Filter out following information for each instances from JSON dictionary-
+. Instance Name
+. Private IP
+. Public IP
+. Metadata
+. CPU
+. Memory
+. Creation Date
+. Instance State
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+== Dictionary Query
+In this part of the lab you will following resources to query OpenStack cloud for instance information-
+
+* Create playbook
+* Ansible Navigator settings
+* `ee-osp` Execution Environment (Build in Custom Execution Environment lab)
+
+=== Create Playbook
+. You need to run following commands to create a playbook which will have tasks to query instance infromation.
++
+[source,sh]
+----
+$ mkdir $HOME/dictionary-parsing
+$ cd $HOME/dictionary-parsing
+$ cat > playbook.yml <<EOF
+---
+- name: Dictionary Parsing
+  hosts: localhost
+  gather_facts: false
+  vars:
+    guid: "{{ lookup('env', 'GUID')}}"
+  tasks:
+    - name: Collect OpenStack instances info
+      openstack.cloud.server_info:
+        cloud: "{{ guid }}-project"
+        server: "*"
+      register: output
+
+    - name: Print instances information
+      debug:
+        var: output
+EOF
+----
+
+=== Ansible Navigator settings
+
+. You can create Ansible Navigator settings file as follows-
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    playbook: playbook.yml
+  app: run
+  execution-environment:
+    image: ee-osp:1.0.0
+    pull-policy: missing
+    volume-mounts:
+      - src: "/etc/openstack/clouds.yaml"
+        dest: "/etc/openstack/clouds.yaml"
+        label: "Z"
+    environment-variables:
+      pass:
+        - GUID
+  mode: stdout
+  playbook-artifact:
+     enable: False
+EOF
+----
+
+=== Run Playbook
+. You can run playbook to display collected information as follows-
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Sample command output
+[source,textinfo]
+----
+---<Output Omitted>---
+TASK [Print instances information] ***************************************************
+ok: [localhost] => {
+    "output": {
+        "changed": false,
+        "failed": false,
+        "openstack_servers": [
+            {
+                "OS-DCF:diskConfig": "MANUAL",
+                "OS-EXT-AZ:availability_zone": "nova"
+---<Output Omitted>---
+PLAY RECAP ***************************************************************************
+localhost  : ok=2  changed=0  unreachable=0  failed=0  skipped=0  rescued=0  ignored=0
+----
+
+
+== Filter Values from Dictionary
+In this par of the lab you will need to add tasks in `playbook.yml` as per lab requirements-
+
+.Lab Requirements
+* Add filter tasks in `playbook.yml`
+* Fillter out following information-
+. Instance Name
+. Private IP
+. Public IP
+. Metadata
+. CPU
+. Memory
+. Creation Date
+. Instance State
+* Store filtered data in `YAML` format in `$HOME/dictionary-parsing/instances.yml` file.
+
+=== Tips
+. Modify `playbook.yml`.  You may consider using set_fact and copy module.
+
+ifeval::[{show_solution} == true]
++
+.Solutions
+****
+* Add following tasks in `playbook.yml`.
++
+[source,sh]
+----
+$ cat >> playbook.yml <<EOF
+    - name: Store value in variable
+      set_fact:
+        openstack_instances: "{{
+           openstack_instances |default([]) + [{
+          'Name': item.name,
+          'Private_ip': item.private_v4,
+          'Public_IP': item.public_v4,
+          'State': item.vm_state,
+          'CPU': item.flavor.vcpus,
+          'Memory': item.flavor.ram,
+          'Metadata': item.metadata
+          }] }}"
+      loop: "{{ output.openstack_servers }}"
+
+    - name: Save output in file
+      copy:
+        content: |
+          ---
+          openstack_servers:
+          {{openstack_instances |to_nice_yaml}}
+        dest: instances.yml
+EOF
+----
+****
+endif::[]
+
+
+. Execute ansible-navigator to run playbook.
+
+ifeval::[{show_solution} == true]
++
+.Solutions
+****
+* Run ansible-navigator as follows.
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Sample Output
+[source,textinfo]
+----
+---<Output Omitted>---
+TASK [Save output in file] ************************************************************
+changed: [localhost]
+
+PLAY RECAP ****************************************************************************
+localhost   : ok=4  changed=1  unreachable=0  failed=0  skipped=0  rescued=0  ignored=0
+----
+****
+endif::[]
+
+
+. Review `$HOME/dictionary-parsing/instances.yml` file.
+
+ifeval::[{show_solution} == true]
++
+.Solutions
+****
+* You can use cat to read file as follows.
++
+[source,sh]
+----
+$ cat $HOME/dictionary-parsing/instances.yml
+----
++
+.Sample Output
+[source,textinfo]
+----
+---
+instances:
+-   CPU: 4
+    Memory: 32768
+    Metadata:
+        AnsibleGroup: satellites
+        Project: ansible-advanced-v2-f762
+        env_type: ansible-advanced-v2
+        guid: f762
+        instance_filter: ansible-advanced-v2-mitsharm@redhat.com
+        ostype: linux
+        owner: mitsharm@redhat.com
+    Name: satellite
+    Private_ip: 192.168.50.141
+    Public_IP: 52.117.178.57
+    State: active
+-   CPU: 2
+    Memory: 10240
+    Metadata:
+        AnsibleGroup: bastions,controls
+        Project: ansible-advanced-v2-f762
+        env_type: ansible-advanced-v2
+        guid: f762
+        instance_filter: ansible-advanced-v2-mitsharm@redhat.com
+        ostype: linux
+        owner: mitsharm@redhat.com
+    Name: control
+    Private_ip: 192.168.50.89
+    Public_IP: 52.117.178.129
+    State: active
+----
+****
+endif::[]
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

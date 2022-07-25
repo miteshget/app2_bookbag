@@ -1,0 +1,235 @@
+include::../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::/../tools/00_0_Lab_Provision.adoc[]
+include::../tools/00_1_Lab_Connect_Environment.adoc[]
+
+== Ansbile Content Collection
+Automation Hub on `cloud.redhat.com` contains certified Ansible Content Collections and supported ones by Red Hat and a vast ecosystem of partners, available through a valid Red Hat Ansible Automation Platform subscription. As for the *private Automation Hub*, its purpose is to host your personal Collections and curated content from Automation Hub or Ansible Galaxy.
+
+
+== Goal 
+In this lab, You are asked to Sync Ansible content collections:
+
+* Publish Private Collection
+* Sync Red Hat certified collections
+* Sync curated collections from `Ansible Galaxy`
+* Push Execution Environment to Automation Hub registry.
+
+
+== Prepare Lab 
+. Setup Gitlab server 
++
+[source,sh]
+----
+[devops@bastion ~]$ lab deploy -p gitlab
+----
++
+[NOTE]
+Give sometime to Gitlab server to come up. 
+
+
+== Publish Private Collection
+
+In this section, you will first build Private collection from git repository and then publish private collection in a Namespace.
+
+
+. Connect to `bastion` host as `devops` user.  
+
+.  Build Private Collection and remote copy to laptop.
+
+.. Clone the collection git Repository.
+
++
+[source,sh]
+----
+$ git clone https://github.com/redhat-gpte-devopsautomation/aa-mycollections.git
+----
+
+
+.. Build the tar file for mycollections/threetierapp. 
+
++
+[source,sh]
+----
+$ ansible-galaxy collection build aa-mycollections/threetierapp/
+Created collection for mycollections.threetierapp at /home/devops/mycollections-threetierapp-1.0.0.tar.gz
+----
+
++
+[NOTE]
+In the above example mycollections is namespace name and threetierapp is collection name. 
+
+.. Remote copy the `mycollections-threetierapp-1.0.0.tar.gz` to your laptop as we have to upload using WebUI
+
++
+[source,sh]
+----
+For example:
+$ cp /home/devops/mycollections-threetierapp-1.0.0.tar.gz /tmp/
+laptop$ scp opentlc-id@bastion.{GUID}.dynamic.opentlc.com:/tmp/mycollections-threetierapp-1.0.0.tar.gz Downloads
+Password: ******
+----
+
+. Publish private collection to Automation Hub.
+
+
+.. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49211 to access Automation Hub.
+
+.. From Left Pane expand `Collections` and then click on `Namespaces`. 
+
+.. Click on *Create* and enter `mycollections` in *Name* box.
+
+.. Search for the `mycollections` namespace and select *view collections*.
+
+.. Click on *Upload Collection*, browse and upload the `mycollections-threetierapp-1.0.0.tar.gz` file. 
+
+
+.. Under *Collections* from left side pane. Click on *Approval*.
+
+.. CLick on *approve* to publish the collection. 
+
+
+== Red Hat Certified Content Sync
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49211 to access Automation Hub.
+
+. From Left Pane expand `Collections` and then click on `Repository Management`
+
+. Select *Remote* tab. 
+
+. In the *rh-certified* column, beside *Sync* button hover your mouse over three dots and click *Edit*. 
+
+
+|====
+| Parameter | Value
+| URL | https://cloud.redhat.com/api/automation-hub/
+| Token | Copy from https://console.redhat.com/ansible/automation-hub/token
+| SSO URL | Copy from https://console.redhat.com/ansible/automation-hub/token
+|====
+
++
+[NOTE]
+You need to have Red Hat account to get the token from https://console.redhat.com/ansible/automation-hub/token.
+
+. Press *Save*
+
+. CLick on *Sync* button to sync Red Hat Content. 
+
+. You can click on *Collections* from left pane and look for collections which are synced. 
+
+=== Sync Community Content
+
+. Create `requirements.yml` with list of all the collections from `galaxy.ansible.com` on your laptop/desktop.
+
++
+[source,sh]
+----
+$ cat > requirements.yml <<EOF
+---
+collections:
+  - ansible.posix
+  - community.general
+  - openstack.cloud
+  - community.mysql
+EOF
+----
+
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49211 to access Automation Hub.
+
+. From Left Pane expand `Collections` and then click on `Repository Management`. 
+
+. In the *community* column,  beside *Configure* button hover your mouse over three dots and click *Edit*. 
+
+. Browse and upload a `requirements.yml` file.
+
+. Click on *Sync* button.
+
+.  You can click on *Collections* from left pane and look for collections which are synced. 
+
+. On top of the page from dropdown box you can select repository *Filter by repository*.
+
+
+== Push Execution Environment
+
+. Connect to `bastion` host
+
+. Pull a supported automation execution environment from the Red Hat Ecosystem Catalog (registry.redhat.io).
+
+.. First we need to authenticate to registry.redhat.io.
++
+[source,sh]
+----
+$ podman login registry.redhat.io
+Username: prakhar@redhat.com
+Password: ******
+Login Succeeded
+
+----
+
+.. Now download one of the supplied execution environments
+
++
+[source,sh]
+----
+$ podman pull registry.redhat.io/ansible-automation-platform-21/ee-minimal-rhel8:1.0.0-48
+----
+
+
+.. List all downloaded automation execution environments.
+
++
+[source,sh]
+----
+$ podman images
+REPOSITORY                                                          TAG         IMAGE ID      CREATED     SIZE
+registry.redhat.io/ansible-automation-platform-21/ee-minimal-rhel8  1.0.0-48    35a8eb6ce78c  8 days ago  399 MB
+----
+
+. Push EE image to Private Automation Hub. 
+
+.. Tag the image for use in private automation hub container registry using 
+
++
+[source,sh]
+----
+$ podman tag registry.redhat.io/ansible-automation-platform-21/ee-minimal-rhel8:1.0.0-48 ah.example.com/gpte_ee
+----
+
+.. Verify the new tag.
+
++
+[source,sh]
+----
+$ podman images
+REPOSITORY                                                          TAG         IMAGE ID      CREATED     SIZE
+registry.redhat.io/ansible-automation-platform-21/ee-minimal-rhel8  1.0.0-48    35a8eb6ce78c  8 days ago  399 MB
+ah.example.com/gpte_ee                                              latest      35a8eb6ce78c  8 days ago  399 MB
+----
+
+.. Authenticate to private automation hub:
+
++
+[source,sh]
+----
+$ podman login -u admin -p r3dh4t1! ah.example.com --tls-verify=false
+Login Succeeded!
+
+----
+
+.. Push the EE Image
+
++
+[source,sh]
+----
+$ podman push --tls-verify=false ah.example.com/gpte_ee --remove-signatures
+Copying blob 87cd41b1f9f8 done  
+Copying blob 44f62afd0479 done  
+Copying blob d01d50478d6d done  
+----
+
+. Logging into the Web UI, you will notice there is a new Container Registry and the `gpte_ee` is displayed.
+

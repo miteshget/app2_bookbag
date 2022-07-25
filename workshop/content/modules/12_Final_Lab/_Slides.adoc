@@ -1,0 +1,29 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2 - Content Creator
+
+[#cover-h2]
+Final Lab
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Final Lab Overview
+:linkattrs:
+
+* Successful completion of the final lab is required for course credit
+
+* Use the environment from link:https://labs.opentlc.com[https://labs.opentlc.com^]
+** *OpenTLC Automation -> Ansible Advanced - Lab*
+
+* Allow 8 hours to complete the final lab.
+** Contact your instructor if you are unable to allocate time to complete the final lab.
+** Contact OPENTLC staff if you need to extend your access to your environment before it expires.
+

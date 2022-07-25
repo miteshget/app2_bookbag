@@ -1,0 +1,133 @@
+include::../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_0_Lab_Provision.adoc[]
+include::../tools/00_1_Lab_Connect_Environment.adoc[]
+
+== Synchronize private automation hub with automation controller
+
+
+
+== Goal 
+In this lab, You are asked synchronize execution environments and collections with automation controller.
+
+* Create Private Automation Hub Credential to use as galaxy server.
+* Create Private Automation Hub Credential to use as Container Registry.
+* Add Credentials to *Default* organisation to sync collections
+* Add Execution Environments
+
+
+
+== Create Ansible galaxy server credentials
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49211 to access Automation Hub.
+
+. Under *Collections* from left side pane click on *API Token*.
+
+. Click on Load Token.
+
+. Copy the `token`, you will be using to create credentials on Automation Controller.
+
+. Click on *Repository Management* under *Collections*.
+
+. Copy the *Repo URL* from *published* column, you will be using to create credentials on Automation Controller.
+
+. In another tab, open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:492110 to access Automation Controller.
+
+. On the left side pane under *Resources* click on *Credentials*.
+
+. Click Add
+
++
+|=====
+| Parameter | Value
+| Name | Automation_Hub_Cred
+| Description | Private Automation Hub galaxy server
+| Organizations | Default
+| Credential Type | Ansible Galaxy/Automation Hub API Token
+| Galaxy Server URL | https://bastion.{GUID}.dynamic.opentlc.com:49211/api/galaxy/content/published/
+| API Token | `paste from automation hub`
+|=====
+
+
+== Create Ansible galaxy server credentials
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:49210 to access Automation Controller.
+
+. On the left side pane under *Resources* click on *Credentials*.
+
+. Click Add
+
++
+|=====
+| Parameter | Value
+| Name | Automation_HUB_Registry_Cred
+| Description | AH Container Registry 
+| Organizations | Default
+| Credential Type | Container Registry
+| Registry URL | https://bastion.{GUID}.dynamic.opentlc.com:49211
+| Username | admin
+| Password or Token | r3dh4t1!
+| Verify SSL | Remove Tick
+|=====
+
+
+
+
+
+
+== Add Collection Credentials to organisation
+
+.  Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:492110 to access Automation Controller.
+
+. Next step will be to specify the search order of the repositories/hubs in organization.
+
+. In the left frame under *Access*, let’s click on *Organizations*.
+
+. Select *Default* and press *Edit*.
+
+. Click and remove ‘Ansible Galaxy’ from ‘Galaxy Credentials’ and add the following credentials/repositories in this order: Automation_Hub_Cred and Ansible Galaxy.
+
+. The order in which you will make the selection is essential, as it provides Automation Controller the sequence in which hubs should be looked in to find Collections.
+
+
+. Click ‘Settings’ in the left frame under ‘Jobs’. Then, click ‘Jobs Settings’ at the bottom of the page click *Edit*.
+
+. Toggle the switch `Ignore Ansible Galaxy SSL Certificate Verification` to On and then *Save*.
+
++
+[NOTE]
+As we are not using valid SSL cert with Automation Hub thats why we need to Ignore SSL cert.
+
+
+
+
+== Add Execution Environment
+
+. Open URL in Browser: https://bastion.${GUID}.dynamic.opentlc.com:492110 to access Automation Controller.
+
+. In the left frame under *Administration*, click on *Execution Environments*.
+
+. CLick *Add* 
+
+|=====
+| Parameter | Value
+| Name | GPTE EE
+| Image | bastion.{GUID}.dynamic.opentlc.com:49211/gpte_ee:latest
+| Pull | Only pull the image ...
+| Description | EE
+| Organizations | Default
+| Registry Credential | Automation_HUB_Registry_Cred
+|=====
+
+
+[NOTE]
+You can find the Image URL from Automation Hub under Execution Environments.
+
+
+
+== Conclusion
+
+. We will be using Ansible Collection and EE in Automation Mesh Lab. 

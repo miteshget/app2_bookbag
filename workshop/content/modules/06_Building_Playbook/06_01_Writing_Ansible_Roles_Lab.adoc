@@ -1,0 +1,2 @@
+:show_solution: false
+include::../modules/06_Building_Playbook/06_01_Writing_Ansible_Roles_Body.adoc[]

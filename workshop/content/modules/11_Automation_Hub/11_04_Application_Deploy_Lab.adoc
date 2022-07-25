@@ -1,0 +1,179 @@
+include::../tools/00_0_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_0_Lab_Provision.adoc[]
+include::../tools/00_1_Lab_Connect_Environment.adoc[]
+
+
+== Three Tier Application Deploy
+
+In this lab, you will deploy Three Tier application on a single node. This lab focusses on to understand how Execution Node works and how can you use
+  Private Automation Hub to host Ansible artifacts such as collections and execution environments.
+
+
+== Goal
+* Create Project
+* Create Openstack API Credentials
+* Create Inventory
+* Create machine credentials
+* Create Job Template
+* Execute the Job 
+* Verify Execution Nodes
+
+
+
+== Create Project
+
+In this section, you will create a new Project with following details:
+
+
+|====
+|Parameter | Value
+| Name | Application_Project
+| Description | Git Repo for Three Tier App
+| Organization | Default
+| Execution Environment | GPTE EE
+| Source Control Credential Type | Git
+| Source Control URL | https://github.com/redhat-gpte-devopsautomation/aa-automation-hub
+| Update Revision on Launch | Tick
+|====
+
+
+
+
+. Wait for Sync to complete.
+
+. Check the details of the Project Sync. By Navigating to Views -> Jobs.
+
+. You will see Collections are fethed using requirements.yml
+
+. Sample Output
+
+
+
++
+[source,sh]
+----
+
+TASK [fetch galaxy roles from requirements.(yml/yaml)] *************************
+[WARNING]: Unable to find
+'/var/lib/awx/projects/_11__application_project/roles' in expected paths (use
+-vvvvv to see paths)
+TASK [fetch galaxy collections from collections/requirements.(yml/yaml)] *******
+changed: [localhost] => (item=/var/lib/awx/projects/_11__application_project/collections/requirements.yml)
+----
+
+== Create Openstack API Credentials
+
+In this section, you will create Openstack Credentials to connect to API.
+
+. On bastion host list the contents of `/home/devops/materials/clouds.yaml` file. You will that information to create credential. 
+
+
+|====
+| Parameter | Value
+| Name | OSP_API_Credential
+| Organization | Default
+| Credential Type | Openstack
+| Username | `username` from clouds.yaml
+| Password | `password` from clouds.yaml
+| Host(Authentication URL) | `auth_url` from clouds.yaml
+| Project(Tenant Name) | `project_name` from clouds.yaml
+| Project(Domain Name)| Leave it empty
+| Domain Name | Default
+| Region Name | Leave it empty
+|====
+
+== Create Inventory
+
+In this section you will create dynamic inventory and add host in groups based on the playbooks in `threetierapp` collection.
+
+. Create Inventory
++
+|====
+| Parameter | Value
+| Name | Openstack_Inventory
+| Organization | Default
+|====
+
+
+. Add Openstack Dynamicc Invetory Plugin as *Source*
++
+|====
+| Parameter | Value
+| Name | OSP_Inventory_Plugin
+| Source | Openstack
+| Credential | OSP_API_Credential
+|====
+
+. Sync the inventory
+
+. Once sync is completed explore `Openstack_Inventory` by slecting *Groups* and *Hosts* tab. You will see Groups and Hosts are synced 
+   using Inventory Plugin.
+
+. Add Host groups according to `threetierapp` collection playbooks.
+
+.. Explore `https://github.com/redhat-gpte-devopsautomation/aa-mycollections/blob/main/threetierapp/playbooks/config.yml`
+
+.. Create Host Groups and add managednode1.example.com as Host in all the group.
+
+|====
+| Parameter | Value
+| Name | backend_servers, database_servers and loadbalancers
+|====
+
+.. Once the groups are created `Add existing host` *managednode1* to all newly created groups.
+
+[NOTE]
+This is just an example to see how Execution node works. In Prod you will not deploy all the tiers on same node.
+
+
+== Create Machine Credential
+
+In this section, you will create machine credential which will be used by execution node to connect to managednodes.
+
+
+|====
+| Parameter | Value
+| Name | OSP_Instance_SSH
+| Credential Type | Machine
+| Username | cloud-user
+| SSH Private Key | `Paste contents of /home/devops/.ssh/GUIDkey.pem`
+| Privilege Escalation Method | sudo
+|====
+
+== Create Job Template
+
+In this section, you will create Job template.
+
+
+|====
+| Parameter | Value
+| Name | ThreeAPP_Example
+| Job Type | Run
+| Inventory | Openstack_Inventory
+| Project | Application_Project
+| Playbook | main.yml
+| Credentials | OSP_Instance_SSH
+|====
+
+
+== Launch Job
+
+In this section you will launch the job.
+
+. Follow the Output on the screen, it takes bit of a time to refresh.
+
+. You can also see Jobs running under *Views* -> *Jobs* from left side frame.
+
+. By the time jobs are executing explore *Administration* -> *Instance Groups*.
+
+. Executions nodes are by default added to *default* instance group.
+
+. You will `Used capacity` in percentage for *default* instance group but no change in *controlplane*
+
+. Reason is *controlplane* is now just running controll jobs but not user jobs like playbboks and inventory sync.
+
+. Explore the interface. 

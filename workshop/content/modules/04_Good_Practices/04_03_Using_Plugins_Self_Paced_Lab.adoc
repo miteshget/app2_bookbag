@@ -1,0 +1,170 @@
+:labname: Using Plugins
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+
+== Overview
+
+In this lab you will install ansible plugins in previously build `ee-osp` custom Execution Environment and verify. Following are the list of plugins which you need to install.
+
+* Collection
+. community.general
+. ansible.posix
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+
+== Adding Plugins Collections
+In this lab you will be using `$HOME/ee-osp-build` directory which you had created and configured to build `ee-osp` custom execution environment in the previous lab. So you don't need to re do everything to build image from scratch. 
+
+=== Add Galaxy Dependencies
+. You just need to add following plugins collections in the galaxy `requirements.yml` file-
+* community.general
+* ansible.posix
++
+[source,sh]
+----
+$ cd $HOME/ee-osp-build
+$ cat requirements.yml
+collections:
+  - openstack.cloud
+  - community.general <1>
+  - ansible.posix <2>
+----
+Callouts
+<1> Add community.general collection in the requirements.yml
+<2> Add ansible.posix collection in the requirements.yml
+
+
+
+=== Re Build Execution Environment
+
+. After adding collections in `reuqirements.yml`, You just need to re run `ansible-builder` command as follows-
++
+[source,sh]
+----
+$ ansible-builder build -t ee-osp:1.1.0
+----
++
+.Build output
+[source,textinfo]
+----
+File context/_build/requirements.yml had modifications and will be rewritten
+Running command:
+  podman build -f context/Containerfile -t ee-osp:1.1.0 context
+Complete! The build context can be found at: /home/devops/ee-osp-build/context
+----
+
+=== Verify Execution Environment
+
+. Let's verify custom execution environment image.
++
+[source,sh]
+----
+$ ansible-navigator images
+----
++
+.Steps to verify collections
+====
+. Type the *line number* of ee-osp image to get details.
+. Then type *2* to get list of collections, Make sure you see all of the collection, which you have installed, in the list.
+. To exit, keep on pressing <ESC> key until you are back to shell prompt.
+====
+
+
+== Using Plugins
+In this part of the lab you will use `callback` plugins which was installed in the image from the collections. To use plugins you will create ansible.cfg, ansible-navigator.yaml and simple ansible playbook.
+
+=== Create ansible.cfg
+. You can create `ansible.cfg` to use callback plugins as follows-
++
+[source,sh]
+----
+$ mkdir $HOME/test-plugins
+$ cd $HOME/test-plugins
+$ cat > ansible.cfg <<EOF
+[defaults]
+callbacks_enabled = ansible.posix.timer, ansible.posix.profile_tasks
+EOF
+----
+
+
+=== Create Playbook
+. You can create simple playbook to test plugins as follows-
++
+[source,sh]
+----
+$ cat > playbook.yml <<EOF
+---
+- name: Test plugins
+  hosts: localhost
+  gather_facts: false
+  vars:
+    guid: "{{ lookup('env', 'GUID')}}"
+  tasks:
+    - name: Collect OpenStack instances info
+      openstack.cloud.server_info:
+        cloud: "{{ guid }}-project"
+        server: "*"
+EOF
+----
+
+
+=== Create Settings file
+. You can prepare ansible-navigator settings file to use ansible.cfg and playbook as follows.
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    config: ansible.cfg
+    playbook: playbook.yml
+  app: run
+  execution-environment:
+    image: ee-osp:1.1.0
+    pull-policy: missing
+    volume-mounts:
+      - src: "/etc/openstack/clouds.yaml"
+        dest: "/etc/openstack/clouds.yaml"
+        label: "Z"
+    environment-variables:
+      pass:
+        - GUID
+  mode: stdout
+  playbook-artifact:
+    enable: False
+EOF
+----
+
+
+=== Run Playbook
+. To run your playbook you simply execute following command and verify the output.
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Command Output
+image:plugins_output.png[]
++
+NOTE: Watch the output closely, This time replay has more infomation which is because of callbacks plugins.
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

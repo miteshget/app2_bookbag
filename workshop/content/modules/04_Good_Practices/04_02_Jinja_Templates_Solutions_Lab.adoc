@@ -1,0 +1,2 @@
+:show_solution: true
+include::../modules/04_Good_Practices/04_02_Jinja_Templates_Body.adoc[]

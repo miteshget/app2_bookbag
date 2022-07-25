@@ -1,0 +1,189 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+IaC Automation
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+:scrollbar:
+:data-uri:
+
+* Infrastructure as Code (IaC)
+* Cloud Provider Requirements
+* Cloud support with Ansible
+* Cloud Provider Collections
+* Example Playbook
+* Modules vs Orchestration Templates
+
+
+== Infrastructure as Code (IaC)
+
+* What is IaC?
+* Benefits:
+** Cost reduction
+** Increase in speed of deployments
+** Reduce errors 
+** Improve infrastructure consistency
+** Eliminate configuration drift
+
+ifdef::showscript[]
+
+* Infrastructure as code, or programmable infrastructure, means writing code (which can be done using a high level language or any descriptive language) to manage configurations and automate provisioning of infrastructure in addition to deployments.
+
+* The knowledge of server provisioning, configuration management and deployment is no longer only with the systems admins. Even developers can easily engage in the activities, because they can easily write infrastructure code in the languages that they are familiar with.
+
+* A vast number of tools like vagrant, ansible, puppet, docker makes the whole process even easier. This is even made better by the fact that server hosting sites like aws are providing RESTful apis that can be leveraged.
+
+* Most tools are even idempotent, which ensures that you can run the same configuration multiple times while achieving the same result.
+
+* Server automation and configuration management tools can often be used to achieve IaC. There are also solutions specifically for IaC. 
+endif::showscript[]
+
+
+== Infrastructure as Code (IaC) (cont..)
+.Approaches
+* Declarative
+* Imperative
+
+ifdef::showscript[]
+
+* Declarative: 
++
+Declarative IaC determines the desired state of the system. Resources and properties applied to the resource once the user specifies the desired state. An example of a tool that uses a declarative approach is Ansible.
+
+* Imperative: 
++
+Imperative IaC specifies specific commands needed to achieve the desired configuration. The user specifies the desired commands and the commands are executed to bring the system to the desired state. An example of a tool that uses an Imperative approach to IaC is AWS CLI
+endif::showscript[]
+
+
+
+== Cloud Provider Requirements
+* *Python SDK*
+** openstacksdk
+** boto3
+
+* *Credentials*
+  ** IAM access keys
+  ** clouds.yml
+
+== Cloud support with Ansible
+.Cloud support collections helps to provision
+* Instances
+* Networks 
+* Cloud resources
+
+ifdef::showscript[]
+
+Ansible’s library of cloud support modules makes it easy to provision instances, networks, and complete cloud infrastructure wherever you need.
+
+Clouds are more than just servers. Regardless if your application environment just consists of servers, or servers, specific OS configurations, virtual private networks, subnets, and even load balancers - Ansible will ensure the infrastructure meets every need of your application each and every time.
+
+From OpenStack to AWS to GCP and Azure, Ansible has the capabilities you need to effectively deploy and manage your infrastructure, including:
+
+Servers and operating
+Cloud-native routing and networking
+Virtual private networks
+Access policy and permissions
+Load balancers
+Autoscaling policy
+
+endif::showscript[]
+
+
+
+== Cloud Provider Collections
+* Cloud provider's collection list
++
+[%autowidth,cols="^.^,a,a",options="header"]
+|===
+| SR No ^.^| Cloud Provider ^.^| Collection Name
+| {counter:str1} | aws | Amazon.Aws
+| {counter:str1} | openstack | Openstack.Cloud
+| {counter:str1} | GCP | google.cloud
+| {counter:str1} | Azure | Azure.Azcollection
+| {counter:str1} | Vmware | vmware.vmware_rest
+| {counter:str1} | RHEV/ovirt| ovirt.ovirt
+|===
+
+ifdef::showscript[]
+
+The collections includes the modules and plugins supported by community to help the management of cloud infrastructure.
+endif::showscript[]
+
+
+== Example Playbook
+
+[source,yaml]
+----
+- name: Create instances
+  openstack.cloud.server: <1>
+    cloud: devstack <2>
+    name: demo <3>
+    image: rhel-7.6 <4>
+    key_name: ansible_ssh_key <5>
+    flavor: m2.medium <6>
+    security_groups: mySG <7>
+    delete_fip: yes
+    wait: no
+    nics:
+      - net-name: int_network <8>
+    meta: "group=testservers,deployment_name=Dev" <9>
+    userdata: | <10>
+      #!/bin/bash
+      echo "test" > /etc/motd
+----
+
+ifdef::showscript[]
+
+1. `os_server` module for creating/deleting instances
+2. cloud: Name of cloud from `clouds.yaml`
+3. name: Name of instance
+4. image: Image name 
+5. key_name: public key name 
+6. flavor: hard profile associated with instance
+7. security_group: firewall rules
+8. net-name: network name associated with instances.
+9: meta: key/value pair metadata
+10: userdata: userdata is the set of commands/data you can provide to a instance at launch time
+endif::showscript[]
+
+
+== Modules vs Orchestration Templates
+* Pros & Cons
++
+[%autowidth,cols="^.^,a,a",options="header"]
+|===
+|SR No ^.^| Modules ^.^| Orchestration Templates
+| {counter:str3} | Cloud Infrastructure can be buil via Ansible Modules | It is Native to cloud providers
+| {counter:str3}| Build infrastructure layer by layer | Build infrastructure by orchestration template
+| {counter:str3} | Requires Ansible knowledge to use modules | Requires additional knowledge to create templates
+| {counter:str3} | Smaller Learning curve | Bigger learning curve
+| {counter:str3} | Dependencies, ordering, timing | Managed by cloud orchestration tool
+| {counter:str3} | Difficult to destroy cleanly | Easy to destroy by deleting stack
+| {counter:str3} | Good for simple Infrastructure deployment | Good for complex Infrastructure deployments
+|===
+
+
+== Summary
+:scrollbar:
+:data-uri:
+
+* Infrastructure as Code (IaC)
+* Cloud Provider Requirements
+* Cloud support with Ansible
+* Cloud Provider Collections
+* Example Playbook
+* Modules vs Orchestration Templates

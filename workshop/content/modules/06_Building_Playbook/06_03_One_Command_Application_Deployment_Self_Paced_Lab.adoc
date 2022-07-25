@@ -1,0 +1,231 @@
+:labname: One Command Application Deployment
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+== Overview
+In this lab you will write a playbook to deploy three tier app using collections created in earlier labs. Following are the highlight.
+
+* Collections
+. mycollections.threetierapp
+* Roles
+. mycollections.threetierapp.firewall
+. mycollections.threetierapp.apache
+. mycollections.threetierapp.haproxy
+. mycollections.threetierapp.mysqldb
+* Execution Environment
+. ee-osp:1.2.0
+
+[IMPORTANT]
+You need to perform all of the lab instruction on `bastion` node as `devops` user.
+
+=== Prepare Lab Nodes
+
+. You need run following `Lab Manager` command to provision following nodes for which you will write a playbook.
++
+[source,sh]
+----
+$ lab deploy -i threetier
+----
++
+NOTE: You can run `lab destroy -i threetier` in case provisioning fails and then re run above command to re deploy threetier.
+
+. Following lab nodes will be available after lab deployment.
++
+.Environment Nodes
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Inventory Group | Description
+| {counter:cnode:1} | frontend.example.com | *loadbalancers* | This node will run haproxy as frontend server.
+| {counter:cnode} | app1.example.com  
+    .2+| *backend_servers* .2+| These two nodes will run apache as backend application server.
+| {counter:cnode} | app2.example.com
+| {counter:cnode} | appdb.example.com | *database_servers* | This node will run mysqldb as database server.
+|===
+
+== Deployment Playbook
+In this section you will write a playbook to deploy `Three Tier Application` on the above nodes. You will be all necessary roles and playbook from `mycollections.threetier` collection (created in earlier lab).
+
+=== Create Inventory
+. You have already inventory file in the repository so you just need to replace ssh key name as follows.
++
+[source,sh]
+----
+$ cd $HOME/three-tier-app-roles
+$ sed -i "s/\${GUID}/$GUID/g" inventory
+----
+
+=== Create Playbook
+. You can create `Three Tier Application` deployment playbook inside the collection as follows:
++
+[source,sh]
+----
+$ cd $HOME/three-tier-app-roles/collections/ansible_collections/mycollections/threetierapp/
+$ mkdir playbooks
+$ cd playbooks
+$ cat > deploy.yml <<EOF
+---
+- name: Deploy database
+  hosts: database_servers
+  roles:
+    - name: Install and configure firewall
+      role: mycollections.threetierapp.firewall
+      vars:
+        firewall_services:
+          - mysql   
+    - name: database deployment
+      role: mycollections.threetierapp.mysqldb
+
+- name: Deploy haproxy
+  hosts: loadbalancers
+  roles:
+    - name: Install and configure firewall
+      role: mycollections.threetierapp.firewall
+      vars:
+        firewall_services:
+          - http
+        firewall_tcp_ports:
+          - 5000
+    - name: frontend deployment
+      role: mycollections.threetierapp.haproxy
+
+- name: Deploy apache
+  hosts: backend_servers
+  roles:
+    - name: Install and configure firewall
+      role: mycollections.threetierapp.firewall
+      vars:
+        firewall_services:
+          - http
+        firewall_tcp_ports:
+          - 8080
+    - name: application deployment
+      role: mycollections.threetierapp.apache
+EOF
+----
+
+. Create main.yml playbook which will import playbook from collection as follows.
++
+[source,sh]
+----
+$ cd $HOME/three-tier-app-roles
+$ cat > main.yml <<EOF
+---
+- import_playbook: mycollections.threetierapp.deploy
+EOF
+----
+
+=== Ansible Navigator Settings
+. You can create Ansible Navigator settings file with default name `ansible-navigator.yaml` as follows. 
++
+[source,sh]
+----
+$ cat > ansible-navigator.yaml <<EOF
+ansible-navigator:
+  ansible:
+    playbook: main.yml
+    inventories:
+      - inventory 
+  app: run  
+  execution-environment: 
+    image: ee-osp:1.2.0 
+    pull-policy: missing  
+  mode: stdout 
+  logging:
+    append: False
+    level: critical
+    file: /tmp/threetierapp/ansible-navigator.log
+  playbook-artifact:
+    enable: True
+    replay: /tmp/threetierapp/artifact.json
+    save-as: /tmp/threetierapp/artifact.json
+EOF
+----
+
+=== Push Content to Remote Repository
+. Push all your work from local git repository to remote gitlab repository as follows.
++
+[source,sh]
+----
+$ git add .
+$ git commit -m "Re-useable Ansible Roles"
+$ git push origin refactor-roles
+----
++
+NOTE: Enter `devops` as user and `r3dh4t1!` as password if prompted.
+
+
+== One Command Deployment
+After finishing all of the earlier steps you are good to do one command `Three Tier Application` deployment.
+
+=== Running Playbook
+. Simply execute `ansbile-navigator` command line to deploy `Three Tier Application` as follows. 
++
+[source,sh]
+----
+$ ansible-navigator
+----
++
+.Playbook Output
+image:playbook_output.png[]
+
+
+=== Verify Application Deployment
+
+. You can curl `frontend.example.com` to verify `Three Tier Application` deployment as follows-
++
+[source,sh]
+----
+$ curl frontend.example.com
+----
++
+.Sample Output
+[source,textinfo]
+----
+---<Output Omitted>---
+<form action="" method="GET" >
+  Enter User Name: <input type=text name="name" />
+<input type="submit" /></form></center></body></html>
+----
+
+. You can also open https://bastion.${GUID}.dynamic.opentlc.com:49210 URL in your browser to verify `Three Tier Application`.
+* Enter `root` as user name.
+* Then click submit button.
+* If you see the output then deployment is successful.
+* You can refresh page which switchs application between backend servers.
++
+.Web Application
+image:web_page.png[]
+
+== Cleanup 
+You must need to destroy `threetier` nodes, before you move to other labs. Or, Reset in case, you want to redo the lab.
+
+.Destroy Lab Nodes
+. If you want to move to next lab then please run following `Lab Manager` command to destroy lab nodes.
++
+[source,sh]
+----
+$ lab destroy -i threetier
+----
+
+.Reset Lab Nodes
+. You can reset lab nodes if you want to re-do the lab.
++
+[source,sh]
+----
+$ lab reset -i threetier
+----
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

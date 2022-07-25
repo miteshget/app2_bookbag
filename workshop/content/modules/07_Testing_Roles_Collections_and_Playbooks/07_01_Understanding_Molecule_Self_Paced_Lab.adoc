@@ -1,0 +1,440 @@
+:labname: Understanding Molecule
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+
+== Overview
+In this lab you will install and configure molecule to test your ansible development work. 
+
+
+=== Prepare Lab Nodes
+
+. You need run following `Lab Manager` command to provision following nodes for which you will write a playbook.
++
+[source,sh]
+----
+$ lab deploy -i molecule
+----
++
+NOTE: You can run `lab destroy -i molecule` in case provisioning fails and then re run above command to re deploy molecule.
+
+
+. Following lab nodes will be available after lab deployment.
++
+.Environment Node
+[%autowidth,cols="^.^,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Description
+| {counter:cnode:1} | node.example.com| This is the node on which you will configure molecule.
+|===
++
+[IMPORTANT]
+You need to perform all of the lab instruction on `node.example.com` node.
+
+== Molecule
+Ansible Molecule project is designed to aid in the development and testing of Ansible roles. Molecule provides support for testing with multiple instances, operating systems and distributions, virtualization providers, test frameworks and testing scenarios. Molecule encourages an approach that results in consistently developed roles that are well-written, easily understood and maintained.
+
+
+=== Prepare Node
+In this section, you will install OS dependencies and create python virtual environment for molecule. 
+
+. Before you start, you need to connect with node designated for the molecule lab.
++
+[source,sh]
+----
+$ ssh node.example.com
+----
+
+. You need to install following packages to prepare node for molecule.
+* ansible 
+* podman
+* tree
+* gcc 
+* python3-pip 
+* python3-devel 
+* python3-libselinux 
+* openssl-devel 
+
++
+[source,sh]
+----
+[node]$ sudo dnf install -y ansible podman tree gcc python3-pip python3-devel python3-libselinux openssl-devel
+----
+
+. It is highly recommended that you install molecule in a `python virtual environment`. So you follow the step to setup virtual environment.
++
+[source,sh]
+----
+[node]$ mkdir $HOME/venvs
+[node]$ python3.8 -m venv $HOME/venvs/molecule
+----
+
+. To activate python virtual environment, run following command.
++
+[source,sh]
+----
+[node]$ source $HOME/venvs/molecule/bin/activate
+(molecule)[node]$
+----
++
+[NOTE]
+Python virtual env activation process changes the terminal prompt name. which is indication that you are in python virtual environment. To deacative, simply execute `deactivate`.
+
+=== Install Molecule
+
+. You can now install `molecule` in python virtual enviroment using `pip` cli but there is issue with latest version of `cryptography` python library so we need to install specific version of `cryptography-3.2.1` and the `molecule-3.5.2` as follows.
++
+[source,sh]
+----
+(molecule)[node]$ pip install molecule==3.5.2 cryptography==3.2.1
+----
+
+
+
+. You can run following command with flag to display molecule version.
++
+[source,sh]
+----
+(molecule)[node]$ molecule --version
+----
++
+.Version Output
+[source,textinfo]
+----
+molecule 3.5.2 using python 3.8 
+    ansible:2.12.1
+    delegated:3.5.2 from molecule
+----
+
+. Molecule is simple command line tool like other linux commands so you can use --help to explore its options.
++
+[source,sh]
+----
+(molecule)[node]$ molecule --help
+----
+
+=== Install Molecule Driver
+
+Molecule uses drivers to bring up Ansible ready hosts to operate on. It uses the “delegated” aka “DIY” driver by default. Other drivers can be installed separately from PyPI repository, such as the molecule-podman, molecule-vagrant, molecule-azure or molecule-hetzner.
+
+. You will be using `molecule-podman-1.1.0` driver to bring ansible host up and the `yamllint-1.26.3` to check syntaxes. So you need to install the driver and yamllint in python virtual environment as follows.
++
+[source,sh]
+----
+(molecule)[node]$ pip install molecule-podman==1.1.0 yamllint==1.26.3
+----
+
+. You can list all installed molecule drivers after the installation as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule drivers
+----
++
+.Drivers Output
+image:drivers_output.png[]
+
+=== Initialize Role
+. Molecule `init` uses galaxy under the hood to generate conventional role layouts, then it injects a molecule directory in the role and setup default directory inside the molecule directory which is default test scenario. Following are the commands to setup new role with Molecule.
+
++
+[source,sh]
+----
+(molecule)[node]$ mkdir -p $HOME/test-project/roles 
+(molecule)[node]$ cd $HOME/test-project/roles 
+(molecule)[node]$ molecule init role common --driver-name podman
+(molecule)[node]$ tree common
+----
++
+.Sample Output
+[source,textinfo]
+----
+common
+├── defaults
+│   └── main.yml
+├── files
+├── handlers
+│   └── main.yml
+├── meta
+│   └── main.yml
+├── molecule              <1>
+│   └── default           <2>
+│       ├── converge.yml  <3>
+│       ├── molecule.yml  <4>
+│       └── verify.yml    <5>
+├── README.md
+├── tasks
+│   └── main.yml
+├── templates
+├── tests
+│   ├── inventory
+│   └── test.yml
+└── vars
+    └── main.yml
+
+10 directories, 11 files
+----
++
+.Callouts
+<1> Molecule default configuration directory.
+<2> It is default scenario called `default` which further contains molecule configuration files.
+<3> Each scenario will have `molecule.yml` file which is central configuration entrypoint for Molecule, with this file, you can configure each tool that Molecule will employ when testing the role.
+<4> `converge.yml` file is the playbook that contains the call for your role. Molecule will invoke this playbook with ansible-playbook and run it against an instance created by the driver.
+<5> `verify.yml` is the ansible playbook used for testing with the default verifier which is ansible. This allows you to write specific tests against the state of the container after your role has finished executing. 
+
+
+
+== Inspect Default Scenario
+In this section, you are goint to inspect all of files which got created during initialization of the role in side the molecule `default` scenario.
+
+=== molecule.yml
+. The molecule.yml is central configuration entrypoint for Molecule which can be configured according to your use case. It is a YAML file whose keys represent the high level components that Molecule provides.
++
+[source,textinfo]
+----
+(molecule)[node]$ cat common/molecule/default/molecule.yml
+---
+dependency:     <1>
+  name: galaxy
+driver:         <2>
+  name: podman
+platforms:      <3>
+  - name: instance
+    image: docker.io/pycontribs/centos:8
+    pre_build_image: true
+provisioner:    <4>
+  name: ansible
+verifier:       <5>
+  name: ansible
+----
++
+.Callouts
+<1> The Dependency manager. By default molecule uses galaxy to resolve role dependencies if any.
+<2> The Driver provider. By default molecule uses docker to delegate the task of creating instances. This can be set to another supported driver like `podman`.
+<3> The Platforms definitions. Molecule uses platform values to create instances/container, set their name, and configure to which group each instance belongs. You can also provide specific image and many more settings.
+<4> The Provisioner. Molecule only provides an ansible provisioner which manages the life cycle of the instance based on the configuration.
+<5> The Verifier framework. By default molecule uses ansible to provide a way to write specific state checking tests (such as deployment smoke tests) on the target instance.
+
+=== converge.yml
+. The converge.yml file is the playbook that contains the call for your role. Molecule will invoke this playbook with ansible-playbook and run it against an instance created by the driver.
++
+[source,textinfo]
+----
+(molecule)[node]$ cat common/molecule/default/converge.yml 
+---
+- name: Converge
+  hosts: all            <1>
+  tasks:                <2>
+    # replace these tasks with whatever you find suitable to test
+    - name: Copy something to test use of synchronize module
+      ansible.posix.synchronize:
+        src: /etc/hosts
+        dest: /tmp/hosts-from-controller
+      # synchronize module works with podman connections only with 2.11+ so
+      # we skip running it on unsupported platforms.
+      when: "ansible_version.full is version_compare('2.11', '>=')"
+    - name: "Include common"
+      include_role:     <3>
+        name: "common"
+----
++
+.Callouts
+<1> List of ansible hosts or groups against which molecule will run converge.yml playbook.
+<2> Tasks of the playbook, You can prepare converge.yml playbook according to your requirements.
+<3> Call for your role.
+
+=== verify.yml
+. `verify.yml` is the ansible playbook used for testing with the default verifier which is ansible. This allows you to write specific tests against the state of the container after your role has finished executing.
++
+[source,textinfo]
+----
+(molecule)[node]$ cat common/molecule/default/verify.yml 
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all          <1>
+  gather_facts: false
+  tasks:              <2>
+  - name: Example assertion
+    assert:
+      that: true
+----
++
+.Callouts
+<1> List of ansible hosts or groups against which molecule will run converge.yml playbook.
+<2> Tasks of the playbook, You can add tasks to check stat of the instances which gets changed after your role execution. 
+
+
+
+== Run Molecule
+In this section, you will run molecule with various test Sequences
+
+. Due to bug current version of molecule-podman doesn't read collection from molecule custom collections path. So as workaround you need to install following ansible collections in default location.
++
+[source,textinfo]
+----
+(molecule)[node]$ ansible-galaxy collection install containers.podman
+(molecule)[node]$ ansible-galaxy collection install ansible.posix
+----
+
+=== Create Sequence
+
+. In `create` sequence by default molecule installs role dependencies, create instances/cotainers, and prepare them (run pre configuration task) if prepare playbook is configured in the default scenario. You can run molecule create sequence as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cd $HOME/test-project/roles/common
+(molecule)[node]$ molecule create
+----
++
+.Create sequence output
+image:create_sequence.png[]
+
+
+. You can list all of the created instances in create sequence as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule list
+----
++
+.List instance output
+image:molecule_list.png[]
+
+
+. Molecule provides `login` flag which you can use to login directly to any of the instances created in `create sequence` as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule login -h instance
+INFO     Running default > login
+
+[root@instance /]# 
+----
+
+. You can logout from the instance using `exit` command like you logout from other linux host. 
++
+[source,sh]
+----
+[root@instance /]# exit
+----
+
+=== Converge Sequence
+In `converge` sequence by default molecule installs role dependencies, create, prepare, and execute `converge.yml` playbook which includes role on the created instances. To run molecule converge sequence, you need to do following steps.
+
+. The role `common` which you have initialized in previous step, has nothing in it. So you need to add following task in the role before you run converge sequence. As follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > tasks/main.yml <<EOF
+---
+- name: Configure motd
+  copy:
+    content: "Welcome to {{ inventory_hostname }}"
+    dest: /etc/motd
+EOF
+----
+
+. Now, you can run molecule converge sequence to test the role as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule converge
+----
++
+.Converge Output
+image:converge_output.png[]
+
+=== Verify Sequence
+
+In `verify` sequence molecule  executes `verify.yml` playbook which tests against the state of the container after your role has finished executing. To run molecule verify sequence, you need to do following steps.
+
+. The role `common` does not have useful tasks in `molecule/default/verify.yml` playbook to test state. So you need to add following task in the role before you run converge sequence. As follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/verify.yml <<EOF
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: get content
+      slurp:
+        src: "/etc/motd"
+      register: remote_motd
+
+    - name: Print remote motd
+      debug:
+        msg: "{{ remote_motd.content | b64decode }}"
+
+    - name: verify motd content
+      assert:
+        that: '"Welcome to" in remote_motd.content | b64decode'
+EOF
+----
+
+. Now, you can run molecule verify sequence to verify instance state as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule verify
+----
++
+.Verify Output
+image:verify_output.png[]
+
+
+=== Destroy Sequence
+. In `destroy` sequence molecule deletes all of the instances/cotainers which it created as per default scenario configuration. You can run molecule destroy sequence as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule destroy
+----
++
+.Destroy output
+image:destroy_output.png[]
+
+. Now, If you run `molecule list` command then created field will be set to false in the output which mean none of the instance has been created yet.
++
+[source,sh]
+----
+(molecule)[node]$ molecule list
+----
+.List output
+image:destroy_list_output.png[]
+
+
+
+
+
+=== Test sequence
+. Molecule provides commands for manually managing the lifecycle of the instance, scenario, development and testing tools. However, we can also tell Molecule to manage this automatically within a Scenario sequence. We can run full lifecycle sequence as follows.
+
++
+[source,sh]
+----
+(molecule)[node]$ molecule test
+----
++
+[NOTE] 
+Molecule full test sequence destroys the instance at the end. However we can pass --destroy=never option so molecule will not destroy instance and we can use this instance to test failed task if any. The directory in which the molecule.yml resides is the Scenario’s directory.
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

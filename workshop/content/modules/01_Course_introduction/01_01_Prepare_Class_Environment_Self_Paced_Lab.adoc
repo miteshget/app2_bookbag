@@ -1,0 +1,45 @@
+:labname: Prepare Classroom Environment
+
+include::../tools/00_1_Lab_Header.adoc[]
+:imagesdir: ./images
+:numbered:
+
+== Overview
+In this lab you will order your work enviroment which you will be using in rest of the course lab.
+
+
+include::../tools/00_2_1_Lab_Provision.adoc[]
+include::../tools/00_3_1_Lab_Classroom_Nodes.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+=== Prepare Classroom
+
+. You need run following `Lab Manager` command to prepare all of the classroom component and resources. This command deploys gitlab, haproxy and bind-dns pods which you will be using in rest of the class. 
++
+[source,sh]
+----
+$ lab prep -c aa-developer
+----
++
+NOTE: You can run `lab cleanup -c aa-developer` in case prep fails and then re run above command to prepare your classroom.
+
+include::../tools/00_3_2_Lab_Classroom_Pods.adoc[]
+
+
+=== Configure GitLab pod
+. Following `Lab Manager` command will configure all necessary repository in gitlab pod.
++
+[source,sh]
+----
+$ lab reconfigure -p gitlab
+----
+
+
+
+====
+.Well done!
+****
+You have successfully completed the {labname} lab. You may now proceed further.
+****
+====

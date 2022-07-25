@@ -1,0 +1,312 @@
+:labname: Testing Role With Molecule
+
+include::../tools/00_1_Lab_Header.adoc[]
+
+:imagesdir: ./images
+:numbered:
+
+include::../tools/00_2_2_Lab_Start_Environment.adoc[]
+include::../tools/00_3_2_Lab_Connect_Environment.adoc[]
+
+
+
+== Overview
+This lab is in continuation of the previous lab so you will use some of the settings and resources which you have done already. In this lab you have been provided a `mycollections.threetierapp` collection which includes many roles inside the collection. 
+
+As developer, you need to test one of the role called `apache` from collection using molecule. This time you will configure molecule to run test against OpenStack instances instead of containers. To test you will add molecule scenario in the existing role as per following requirements.
+
+. OpenStack Nodes
++
+.Nodes Details
+[%autowidth,cols="^.^,^.^a,^.^a,^.^a",options="header"]
+|===
+| Sr No | Node | Inventory Group | Description
+| {counter:cnode:1} | app1  | *backend_servers*  | These two nodes will run apache as backend application..
+| {counter:cnode}   | appdb | *database_servers* | This node will run mysqldb.
+|===
+
+. OpenStack `/etc/openstack/clouds.yaml` Auth file.
+
+. `mycollections.threetierapp` collection role is `apache`.
+
+
+
+
+
+== Prepare Node
+
+. Before you start, You need copy OpenStack authentication file from bastion which is needed by molecule to provision OpenStack instances. You can find the auth file in `/etc/openstack/clouds.yaml` in `bastion` and copy to your node as follows.
++
+[source,sh]
+----
+$ ansible node.example.com -m file -a "state=directory dest=/etc/openstack" -b
+
+$ ansible node.example.com -m copy -a "src=/etc/openstack/clouds.yaml dest=/etc/openstack/clouds.yaml" -b
+----
+
+. Copy GUID variable in node.example.com. This varialbe will replace GUID in some of the molecule sequence playbooks.
++
+[source,sh]
+----
+$ ansible node.example.com -m copy -a "content='export GUID=${GUID}' dest=/home/cloud-user/.bashrc" -b
+----
+
+. Now connect to `node.example.com`.
++
+[source,sh]
+----
+$ ssh node.example.com
+----
+
+. You need to activate python virtual environment created in previous lab, as follows.
++
+[source,sh]
+----
+[node]$ source $HOME/venvs/molecule/bin/activate
+----
+
+
+. You need to install following python library which are required to configure molecule so it can provision OpenStack instance to test role.
++
+[source,sh]
+----
+(molecule)[node]$ pip install ansible-core==2.12.2 molecule-openstack==0.3  openstacksdk==0.61.0
+----
+
+. You can list all of the installed molecule drivers as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule drivers
+----
++
+.Drivers output
+image:role_molecule_drivers.png[]
+
+
+
+== Prepare Role
+In this part of the lab, you will add molecule default scenario in `apache` role and configure molecule in a such way so it can provision OpenStack instances to execute role against them. 
+
+=== Clone Project
+. You can clone `molecule-project` project from gitlab which contains `mycollections.threetierapp` collection. You can find `apache` role inside the collection. As per the lab you need to test `apache` role with molecule.
++
+[source,sh]
+----
+(molecule)[node]$ cd $HOME
+(molecule)[node]$ git clone http://bastion.example.com:5050/devops/molecule-project.git
+----
+
+=== Add Molecule Scenario
+
+. You can add molecule scenario (which is a self-contained directory containing everything necessary for testing the role in a particular way) to test the `apache` role  as follows
++
+[source,sh]
+----
+(molecule)[node]$ cd $HOME/molecule-project/collections/ansible_collections/mycollections/threetierapp/roles/apache
+
+(molecule)[node]$ molecule init scenario -d openstack
+----
+
+
+=== Update molecule.yml
+
+. You need to update `molecule.yml` in default molecule scenario so that it provisions one `app1` (backend_servers) and one `appdb` (database_servers) OpenStack instances as per minimume requirement of the role to test. 
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/molecule.yml <<EOF
+---
+dependency:
+  name: galaxy
+driver:
+  name: openstack                       <1>
+platforms:
+  - name: app1                          <2>
+    image: rhel-8.3                     <3>
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor <4>
+    network: ${GUID}-default-network    <5>
+    ssh_user: cloud-user                <6>
+    groups:     
+      - backend_servers                 <7>
+  - name: appdb                         <2>
+    image: rhel-8.3                     <3>
+    flavor: GLOBAL-CPU_4_Memory_8192_Disk_30_flavor <4>
+    network: ${GUID}-default-network    <5>
+    ssh_user: cloud-user                <6>
+    groups:
+      - database_servers                <7>
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_CONFIG: /home/cloud-user/molecule-project/ansible.cfg <8>
+verifier:
+  name: ansible
+EOF
+----
++
+.Callouts
+<1> Molecule driver.
+<2> OpenStack instance name.
+<3> Instance image.
+<4> OpenStack flavor.
+<5> OpenStack network.
+<6> Ssh user for instances.
+<7> Ansible inventory groups variable.
+<8> Ansible Configuration file.
+
+
+=== Update prepare.yml
+. You need to update `prepare.yml` so that it can prepare your OpenStack instances upto the level from where your role's tasks can be executed.
++
+[source,sh]
+----
+$ cat > molecule/default/prepare.yml  <<EOF
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    satellite_ca_cert_url: http://satellite.example.com/pub/katello-ca-consumer-latest.noarch.rpm
+    satellite_activationkey: gpte-labs-rhel8
+    satellite_org: prod
+  tasks:
+    - name: install katello-ca-consumer package
+      ansible.builtin.dnf:
+        name: "{{ satellite_ca_cert_url }}"
+        state: present
+        disable_gpg_check: true
+
+    - name: register system and attach subs
+      community.general.redhat_subscription:
+        state: present
+        activationkey: "{{ satellite_activationkey }}"
+        org_id: "{{ satellite_org }}"
+EOF
+----
+
+=== Update converge.yml
+. As per `molecule.yml` it creates two instances one for `backend_servers` and another for `database_servers` but you need to run your role only on `backend_servers` since it configures only application so modify `molecule/default/converge.yml` as follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/converge.yml <<EOF
+---
+- name: Converge 
+  hosts: backend_servers <1>
+  become: yes
+  tasks:
+    - name: "Include apache"
+      include_role:
+        name: "apache"
+EOF
+----
+
+
+=== Update verify.yml
+. The default molecule scenario does not have useful tasks in `molecule/default/verify.yml` playbook to verify the state of the instances. So you can update `verify.yml` As follows.
++
+[source,sh]
+----
+(molecule)[node]$ cat > molecule/default/verify.yml <<EOF
+---
+- name: Verify
+  hosts: backend_servers
+  gather_facts: false
+  tasks:
+  - name: Access backend server
+    uri:
+      url: http://localhost:8080
+      return_content: true
+    register: web_output
+
+  - name: Example assertion
+    assert:
+      that: '"Enter User Name" in web_output.content'
+EOF
+----
+
+
+== Testing Role
+In this section, you will run molecule to provision OpenStack instances, execute role against the instances and you will also verify instances state as per the molecule default scenario settings and configurations which you did in earlier steps.
+
+. Due to bug current version of molecule-podman doesn't read collection from molecule custom collections path. So as workaround you need to install following ansible collections in default location.
++
+[source,sh]
+----
+(molecule)[node]$ cat > $HOME/molecule-project/requirements.yml <<EOF
+collections:
+  - containers.podman
+  - ansible.posix
+  - community.general <1>
+  - openstack.cloud   <2>
+EOF
+(molecule)[node]$ ansible-galaxy collection install -r $HOME/molecule-project/requirements.yml
+----
+
+=== Create Sequence
+. You can run `molecule create` sequence to provision and prepare OpenStack instances as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule create
+----
++
+.Create sequence output
+image:role_molecule_create.png[]
+
+
+=== Converge Sequence
+. You can run `molecule converge` sequence to execute your `apache` role as follows
++
+[source,sh]
+----
+(molecule)[node]$ molecule converge
+----
++
+.Converge Output
+image:role_molecule_converge.png[]
+
+
+=== Verify Sequence
+. You run `molecule verify` sequence to check the state of the OpenStack instances after your role has finished executing. As follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule verify
+----
++
+.Verify Output
+image:role_molecule_verify.png[]
+
+
+=== Destroy Sequence
+. You can run `molecule destroy` sequence to deletes all of the provisioned OpenStack instances as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule destroy
+----
+
+
+=== Test sequence
+. After running each molecule sequence one by one. Now you can run full lifecycle role test sequence as follows.
++
+[source,sh]
+----
+(molecule)[node]$ molecule test
+----
++
+[NOTE] 
+Molecule full test sequence destroys the instance at the end. However we can pass --destroy=never option so molecule will not destroy instance and we can use this instance to test failed task if any. The directory in which the molecule.yml resides is the Scenario’s directory.
+
+
+
+====
+.Congratulations!
+****
+[.text-center]
+You have successfully completed the {labname} lab. You may now proceed to next lab.
+****
+====

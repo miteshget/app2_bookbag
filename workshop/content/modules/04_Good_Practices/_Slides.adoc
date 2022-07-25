@@ -1,0 +1,376 @@
+ifdef::revealjs_slideshow[]
+
+[#cover,data-background-image="image/1156524-bg_redhat.png" data-background-color="#cc0000"]
+== &nbsp;
+
+[#cover-h1]
+Red Hat^(R)^ Ansible Automation Platform 2
+
+[#cover-h2]
+Good Practices
+
+[#cover-logo]
+image::{revealjs_cover_image}[]
+
+endif::[]
+
+
+== Module Topics
+:linkattrs:
+
+* The Ansible^(R)^ Way
+* Variables
+* Plugins
+* Modules
+* YAML
+* Jinja2 Template
+
+== The Ansible^(R)^ Way
+* DevOps and Automation
+* Infrastructure as code / Configuration as code
+* Complexity kills productivity
+* Optimize for readability
+* Don't Repeat Yourself (DRY)
+* Version-control your Ansible Automation content
+
+
+== Ansible Variables
+.Variables
+* Can be set at a task, block, role, play level
+* Separate logic (tasks) from variables and reduce repetitive patterns
+* Find appropriate place(s) for variables based on what, where, and when set or modified
+* Understand variable precedence and visibility
+* Understand scope and the impact of *-e* or *--extra-vars*
+
+ifdef::showscript[]
+
+* *Variable precedence* - https://docs.ansible.com/ansible/2.9/user_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
+
+endif::showscript[]
+
+
+== Ansible Variables
+.Proper Naming
+* Use descriptive, unique, human-meaningful names for variables
+* Prefix role variables with role names to avoid conflicts
+* Hide internal role vars with Python Style _snake case_ 
+* *_Sample Example_*
++
+[source,textinfo]
+----
+haproxy_port: 8080
+role_haproxy_port: 8080
+_haproxy_port_: 8080
+----
+
+
+== Ansible Variables
+.Variables - Types
+. *Scalars*
++
+[source,yaml]
+----
+haproxy_max_keepalive: 25
+haproxy_port: 80
+----
+. *Lists* - (aka as arrays, vectors)
++
+[source,yaml]
+----
+base_packages:
+  - yum
+  - vim
+  - tmux
+----
+. *Dictionaries*
++
+[source,yaml]
+----
+haproxy:
+  max_keepalive: 25
+  packages:
+    - haproxy
+    - firewalld
+  frontends:
+    - name: frontend_01
+      description: Load balancer for ...
+----
+
+ifdef::showscript[]
+
+Cover the 3 data types used by Ansible:
+
+* *Scalars* - Holds a single value, Commonly associated with other scalars via prefix. Understand the simplicity of scalars when only 1 or 2 need to be used as in the first haproxy example.
+
+* *Lists* - (aka as arrays, vectors in many programming langages), Holds multiple values, Simple to reference and loop on
+
+* *Dictionaries* - Un-ordered collection of key value pairs, Easy to pass _around_ , Problematic to update or join (`combine`). Understand the strength of dictionaries when more complex objects are required
+NOTE: There are complexities in updating existing dictionaries and re-assignment, see `combine`
+
+endif::showscript[]
+
+
+
+== Ansible Plugins
+
+. What is Ansible plugin?
+. List plugins
+  * Online - https://docs.ansible.com/ansible/latest/collections/all_plugins.html
+  * Offline - 
+  ** ansible-doc --list --type <plugin_type> 
+  ** ansible-navigator doc -t <plugin_type> <plugin>
+
+ifdef::showscript[]
+
+* Plugins are pieces of code that augment Ansible’s core functionality. Ansible uses a plugin architecture to enable a rich, flexible and expandable feature set. Ansible ships with a number of handy plugins, and you can easily write your own.
+
+Working with plugins: https://docs.ansible.com/ansible/latest/plugins/plugins.html
+endif::showscript[]
+
+== Ansible Plugins
+.Useful ansible plugins
+  * Cache
+  * Callback
+  * Strategy
+  * Lookup
+  * Filter
+
+== Ansible Plugins
+.Installing Plugins
+* Default plugins
+* Additinal plugins 
+  ** Ex: ansible-galaxy collection install community.general
+
+ifdef::showscript[]
+
+* Cache plugins allow Ansible to store gathered facts or inventory source data without the performance hit of retrieving them from source. The default cache plugin is the memory plugin, which only caches the data for the current execution of Ansible. Other plugins with persistent storage are available to allow caching the data across runs. Some of these cache plugins write to files, others write to databases. You can use different cache plugins for inventory and facts. If you enable inventory caching without setting an inventory-specific cache plugin, Ansible uses the fact cache plugin for both facts and inventory.
+
+endif::showscript[]
+
+== Ansible Plugins
+.Using plugins 
+* Export environment variable
+ ** Ex: ANSIBLE_CACHE_PLUGIN=<plugin_name>
+* Change in the ansible.cfg
++
+.Ex: Sample ansible.cfg
+[source,textinfo]
+----
+[defaults]
+fact_caching=<plugin_name>
+fact_caching = namespace.collection_name.cache_plugin_name
+----
+
+== Ansible Plugins
+
+****
+[.text-center]
+Instructor Demo: *Ansible Plugins*
+****
+
+== Ansible Modules Vs plugins
+* Modules
+* Plugins
+
+ifdef::showscript[]
+
+If you are looking to add functionality to Ansible, you might wonder whether you need a module or a plugin. Here is a quick overview to help you understand what you need:
+
+* Plugins:
++
+Plugins extend Ansible’s core functionality and execute on the control node within the /usr/bin/ansible process. Plugins offer options and extensions for the core features of Ansible - transforming data, logging output, connecting to inventory, and more.
+
+* Modules:
++
+Modules are reusable, standalone scripts that can be used by the Ansible API, the ansible command, or the ansible-playbook command. Modules provide a defined interface. Each module accepts arguments and returns information to Ansible by printing a JSON string to stdout before exiting. Modules execute on the target system (usually that means on a remote system) in separate processes. Modules are technically plugins, but for historical reasons we do not usually talk about “module plugins”.
+endif::showscript[]
+
+
+== Ansible Modules
+.Module Metadata & Requirements 
+
+* Metadata- 
++
+[source,sh]
+----
+$ ansible-doc os_server_info |grep -A 4 -i metadata <1>
+        METADATA: <2>
+          status: <3>
+          - preview <4>
+          supported_by: community <5>
+----
+
+* Requirements-
++
+[source,sh]
+----
+$ ansible-doc os_server_info |grep -i requirements <1>
+REQUIREMENTS:  openstacksdk, openstacksdk >= 0.12.0, python >= 2.7 <2>
+----
+
+
+== YAML
+.Tips and Tricks
+* Never use TAB key
+* Consistent with formatting
+* Tune your editor
+* Use yamllint for syntax check 
+
+ifdef::showscript[]
+
+We use YAML because it is easier for humans to read and write than other common data formats like XML or JSON
+
+There’s another small quirk to YAML. All YAML files (regardless of their association with Ansible or not) can optionally begin with --- and end with .... This is part of the YAML format and indicates the start and end of a document.
+
+* Tune editor
++
+.vimrc 
+endif::showscript[]
+
+
+== YAML 
+.Use Native YAML Syntax
+
+* This:
++
+[source,texinfo]
+----
+- name: install telegraf
+  yum:
+    name: telegraf-{{ telegraf_version }}
+    state: present
+    update_cache: yes
+    enablerepo: telegraf
+  notify: restart telegraf
+
+----
+
+* Not this:
++
+[source,texinfo]
+----
+- name: install telegraf
+  yum: name=telegraf-{{ telegraf_version }} state=present update_cache=yes enablerepo=telegraf
+  notify: restart telegraf
+----
+
+ifdef::showscript[]
+
+Native YAML has more lines--however, those lines are shorter, cutting down on
+horizontal scrolling and line wrapping. It lets your eyes scan straight down the
+play.
+
+The task parameters are stacked and easily distinguished.
+
+Native YAML syntax also has the benefit of improved syntax highlighting in
+virtually any modern text editor. Being native YAML, editors such as
+vim and Atom highlight YAML keys--module names, directives, and parameter
+names--from their values, further aiding the readability of your content.
+
+NOTE: Many Red Hat^(R)^ documents use this shorthand for legacy reasons, although that is
+progressively being changed. (Documentation pull requests are accepted.)
+
+
+endif::showscript[]
+
+
+== YAML
+
+.Use Multi-line with Block Scalars
+
+* Preserve newlines *|* (literal)
+* Replace new lines with spaces (folded)
+** *>* alone preserves final newline
+** *>-* removes final newline
++
+[source,yaml]
+----
+  vars:
+    motd: | <1>
+      This system is for production database use only
+      Scheduled downtime window: Sundays 13:00-15:00
+  tasks:
+    - name: Create Heat stack from generated template
+      command: >- <2>
+        openstack stack create -f json --wait
+        -t {{ heat_master_template }} base-stack-{{ guid }}
+----
+
+
+ifdef::showscript[]
+
+* link:https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html[Ansible Docs YAML Syntax]
+* link:https://yaml-multiline.info/[YAML Multiline Blog Article]
+endif::showscript[]
+
+
+== Jinja2 Templates
+.Use case
+* Templates should be as simple as possible:
+* Variable substitution
+* Conditionals
+* Simple control structures/iterations
+* Design for your use case, not the world's
+
+== Jinja2 Templates
+.Things to avoid
+* Managing variables in a template
+* Extensive and intricate conditionals
+* Conditional logic based on host names
+* Complex nested iterations
+* Label template output files as being generated by Ansible Engine
+** Warns users that any changes are likely to be overwritten
+** Consider using *ansible_managed* variable with comment filter:
+*** *_Sample Example_*
++
+[source,textinfo]
+----
+{{ ansible_managed | comment }} <1>
+----
+
+ifdef::showscript[]
+
+The `ansible_managed` string can be helpful to indicate that a file should not
+be edited directly because Ansible Engine may overwrite the contents of the file.
+
+endif::showscript[]
+
+
+== Jinja2 Templates
+.Using Jinja2 Templates
+* *template* Module 
++
+[source,yaml]
+----
+- name: Template a file to /etc/file.conf
+  template: <1>
+    src: /mytemplates/foo.j2 <2>
+    dest: /etc/file.conf <3>
+----
+* *lookup* Plugin
++
+[source,yaml]
+----
+subscription: "{{ lookup('template', './templates/subscription.j2' ) }}" <1>
+----
+
+ifdef::showscript[]
+
+Templates don't necessarily need to be consumed by the `template` module.
+
+endif::showscript[]
+
+== Jinja2 Templates
+
+****
+[.text-center]
+Instructor Demo: *Jinja2 Templates*
+****
+
+== Summary
+* The Ansible^(R)^ Way
+* Variables
+* Plugins
+* Modules
+* YAML
+* Jinja2 Template
